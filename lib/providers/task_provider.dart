@@ -16,6 +16,24 @@ class TaskProvider extends ChangeNotifier {
     return allTasks;
   }
 
+  /// 階層構造を保持しながら、表示すべきタスクを取得（折りたたみを考慮）
+  List<TaskWithLevel> getVisibleTasksWithLevel() {
+    List<TaskWithLevel> visibleTasks = [];
+    for (var task in _rootTasks) {
+      _addVisibleTasksRecursive(task, 0, visibleTasks);
+    }
+    return visibleTasks;
+  }
+
+  void _addVisibleTasksRecursive(Task task, int level, List<TaskWithLevel> result) {
+    result.add(TaskWithLevel(task: task, level: level));
+    if (task.isExpanded && task.hasChildren) {
+      for (var child in task.children) {
+        _addVisibleTasksRecursive(child, level + 1, result);
+      }
+    }
+  }
+
   /// タスクを追加
   void addTask(Task task, {Task? parent}) {
     if (parent == null) {
@@ -117,6 +135,54 @@ class TaskProvider extends ChangeNotifier {
     }
   }
 
+  /// ルートタスクの順序を変更
+  void reorderRootTasks(int oldIndex, int newIndex) {
+    if (oldIndex < newIndex) {
+      newIndex -= 1;
+    }
+    final task = _rootTasks.removeAt(oldIndex);
+    _rootTasks.insert(newIndex, task);
+    notifyListeners();
+  }
+
+  /// 子タスクの順序を変更
+  void reorderChildTasks(String parentId, int oldIndex, int newIndex) {
+    if (oldIndex < newIndex) {
+      newIndex -= 1;
+    }
+    
+    for (var i = 0; i < _rootTasks.length; i++) {
+      if (_rootTasks[i].id == parentId) {
+        final children = List<Task>.from(_rootTasks[i].children);
+        final task = children.removeAt(oldIndex);
+        children.insert(newIndex, task);
+        _rootTasks[i] = _rootTasks[i].copyWith(children: children);
+        notifyListeners();
+        return;
+      }
+      if (_reorderChildTasksRecursive(_rootTasks[i], parentId, oldIndex, newIndex)) {
+        notifyListeners();
+        return;
+      }
+    }
+  }
+
+  bool _reorderChildTasksRecursive(Task current, String parentId, int oldIndex, int newIndex) {
+    for (var i = 0; i < current.children.length; i++) {
+      if (current.children[i].id == parentId) {
+        final children = List<Task>.from(current.children[i].children);
+        final task = children.removeAt(oldIndex);
+        children.insert(newIndex, task);
+        current.children[i] = current.children[i].copyWith(children: children);
+        return true;
+      }
+      if (_reorderChildTasksRecursive(current.children[i], parentId, oldIndex, newIndex)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /// サンプルデータを読み込み
   void loadSampleData() {
     _rootTasks = [
@@ -137,7 +203,7 @@ class TaskProvider extends ChangeNotifier {
             startDate: DateTime(2025, 1, 1),
             endDate: DateTime(2025, 1, 7),
             progress: 1.0,
-            color: Colors.blue.shade300,
+            color: Colors.blue,
           ),
           Task(
             id: '1-2',
@@ -146,7 +212,7 @@ class TaskProvider extends ChangeNotifier {
             startDate: DateTime(2025, 1, 8),
             endDate: DateTime(2025, 1, 15),
             progress: 0.6,
-            color: Colors.blue.shade300,
+            color: Colors.blue,
           ),
         ],
       ),
@@ -167,7 +233,7 @@ class TaskProvider extends ChangeNotifier {
             startDate: DateTime(2025, 1, 16),
             endDate: DateTime(2025, 2, 10),
             progress: 0.5,
-            color: Colors.green.shade300,
+            color: Colors.green,
           ),
           Task(
             id: '2-2',
@@ -176,7 +242,7 @@ class TaskProvider extends ChangeNotifier {
             startDate: DateTime(2025, 1, 16),
             endDate: DateTime(2025, 2, 15),
             progress: 0.3,
-            color: Colors.green.shade300,
+            color: Colors.green,
           ),
           Task(
             id: '2-3',
@@ -185,7 +251,7 @@ class TaskProvider extends ChangeNotifier {
             startDate: DateTime(2025, 2, 16),
             endDate: DateTime(2025, 2, 28),
             progress: 0.0,
-            color: Colors.green.shade300,
+            color: Colors.green,
           ),
         ],
       ),
@@ -201,4 +267,12 @@ class TaskProvider extends ChangeNotifier {
     ];
     notifyListeners();
   }
+}
+
+/// タスクと階層レベルを保持するクラス
+class TaskWithLevel {
+  final Task task;
+  final int level;
+
+  TaskWithLevel({required this.task, required this.level});
 }
