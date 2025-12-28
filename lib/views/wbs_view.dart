@@ -17,14 +17,19 @@ class WBSView extends StatelessWidget {
             Expanded(
               child: taskProvider.rootTasks.isEmpty
                   ? _buildEmptyState()
-                  : ListView.builder(
+                  : ReorderableListView.builder(
+                      onReorder: (oldIndex, newIndex) {
+                        taskProvider.reorderRootTasks(oldIndex, newIndex);
+                      },
                       itemCount: taskProvider.rootTasks.length,
                       itemBuilder: (context, index) {
+                        final task = taskProvider.rootTasks[index];
                         return _buildTaskTree(
                           context,
                           taskProvider,
-                          taskProvider.rootTasks[index],
+                          task,
                           0,
+                          key: ValueKey(task.id),
                         );
                       },
                     ),
@@ -89,19 +94,31 @@ class WBSView extends StatelessWidget {
     BuildContext context,
     TaskProvider taskProvider,
     Task task,
-    int level,
-  ) {
+    int level, {
+    Key? key,
+  }) {
     return Column(
+      key: key,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildTaskItem(context, taskProvider, task, level),
         if (task.isExpanded && task.hasChildren)
-          ...task.children.map((child) => _buildTaskTree(
+          ReorderableListView(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            onReorder: (oldIndex, newIndex) {
+              taskProvider.reorderChildTasks(task.id, oldIndex, newIndex);
+            },
+            children: task.children.map((child) {
+              return _buildTaskTree(
                 context,
                 taskProvider,
                 child,
                 level + 1,
-              )),
+                key: ValueKey(child.id),
+              );
+            }).toList(),
+          ),
       ],
     );
   }

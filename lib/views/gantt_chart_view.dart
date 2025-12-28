@@ -31,12 +31,13 @@ class _GanttChartViewState extends State<GanttChartView> {
   Widget build(BuildContext context) {
     return Consumer<TaskProvider>(
       builder: (context, taskProvider, child) {
-        final allTasks = taskProvider.getAllTasks();
+        final visibleTasks = taskProvider.getVisibleTasksWithLevel();
         
-        if (allTasks.isEmpty) {
+        if (visibleTasks.isEmpty) {
           return _buildEmptyState();
         }
 
+        final allTasks = visibleTasks.map((t) => t.task).toList();
         final dateRange = _getDateRange(allTasks);
         final startDate = dateRange['start']!;
         final endDate = dateRange['end']!;
@@ -48,7 +49,7 @@ class _GanttChartViewState extends State<GanttChartView> {
             Expanded(
               child: Row(
                 children: [
-                  _buildTaskNameColumn(allTasks),
+                  _buildTaskNameColumn(visibleTasks, taskProvider, startDate, totalDays),
                   Expanded(
                     child: Scrollbar(
                       controller: _horizontalScrollController,
@@ -69,17 +70,11 @@ class _GanttChartViewState extends State<GanttChartView> {
                                   thumbVisibility: true,
                                   notificationPredicate: (notification) =>
                                       notification.metrics.axis == Axis.vertical,
-                                  child: ListView.builder(
-                                    controller: _verticalScrollController,
-                                    itemCount: allTasks.length,
-                                    itemBuilder: (context, index) {
-                                      return _buildGanttRow(
-                                        allTasks[index],
-                                        startDate,
-                                        totalDays,
-                                        taskProvider,
-                                      );
-                                    },
+                                  child: _buildReorderableGanttChart(
+                                    visibleTasks,
+                                    startDate,
+                                    totalDays,
+                                    taskProvider,
                                   ),
                                 ),
                               ),
@@ -142,7 +137,7 @@ class _GanttChartViewState extends State<GanttChartView> {
     );
   }
 
-  Widget _buildTaskNameColumn(List<Task> tasks) {
+  Widget _buildTaskNameColumn(List<TaskWithLevel> tasks, TaskProvider taskProvider, DateTime startDate, int totalDays) {
     return Container(
       width: taskLabelWidth,
       decoration: BoxDecoration(
@@ -179,54 +174,89 @@ class _GanttChartViewState extends State<GanttChartView> {
                 controller: _verticalScrollController,
                 itemCount: tasks.length,
                 itemBuilder: (context, index) {
-                  final task = tasks[index];
+                  final taskWithLevel = tasks[index];
+                  final task = taskWithLevel.task;
+                  final level = taskWithLevel.level;
+                  
                   return Container(
                     height: taskRowHeight,
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: EdgeInsets.only(
+                      left: 8 + (level * 20.0), // 階層ごとにインデント
+                      right: 8,
+                      top: 4,
+                      bottom: 4,
+                    ),
                     decoration: BoxDecoration(
                       border: Border(
                         bottom: BorderSide(color: Colors.grey.shade200),
                       ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    child: Row(
                       children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 3,
-                              height: 16,
-                              color: task.color,
-                              margin: const EdgeInsets.only(right: 6),
-                            ),
-                            Expanded(
-                              child: Text(
-                                task.name,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                        // 展開/折りたたみボタン
+                        SizedBox(
+                          width: 24,
+                          child: task.hasChildren
+                              ? IconButton(
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  iconSize: 20,
+                                  icon: Icon(
+                                    task.isExpanded
+                                        ? Icons.expand_more
+                                        : Icons.chevron_right,
+                                    size: 20,
+                                  ),
+                                  onPressed: () => taskProvider.toggleExpand(task.id),
+                                )
+                              : const SizedBox(),
+                        ),
+                        const SizedBox(width: 4),
+                        // タスク情報
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 3,
+                                    height: 14,
+                                    color: task.color,
+                                    margin: const EdgeInsets.only(right: 6),
+                                  ),
+                                  Expanded(
+                                    child: Text(
+                                      task.name,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 12,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${_formatDate(task.startDate)} - ${_formatDate(task.endDate)}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '進捗: ${(task.progress * 100).toStringAsFixed(0)}%',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey[600],
+                              const SizedBox(height: 1),
+                              Text(
+                                '${_formatDate(task.startDate)} - ${_formatDate(task.endDate)}',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              const SizedBox(height: 1),
+                              Text(
+                                '進捗: ${(task.progress * 100).toStringAsFixed(0)}%',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -239,6 +269,99 @@ class _GanttChartViewState extends State<GanttChartView> {
         ],
       ),
     );
+  }
+
+  Widget _buildReorderableGanttChart(
+    List<TaskWithLevel> visibleTasks,
+    DateTime startDate,
+    int totalDays,
+    TaskProvider taskProvider,
+  ) {
+    return ReorderableListView.builder(
+      buildDefaultDragHandles: false,
+      onReorder: (oldIndex, newIndex) {
+        _handleReorder(oldIndex, newIndex, visibleTasks, taskProvider);
+      },
+      itemCount: visibleTasks.length,
+      itemBuilder: (context, index) {
+        return ReorderableDragStartListener(
+          index: index,
+          key: ValueKey(visibleTasks[index].task.id),
+          child: _buildGanttRow(
+            visibleTasks[index].task,
+            startDate,
+            totalDays,
+            taskProvider,
+          ),
+        );
+      },
+    );
+  }
+
+  void _handleReorder(
+    int oldIndex,
+    int newIndex,
+    List<TaskWithLevel> visibleTasks,
+    TaskProvider taskProvider,
+  ) {
+    final movedTask = visibleTasks[oldIndex];
+    final movedLevel = movedTask.level;
+    
+    // 同じ階層の範囲を見つける
+    int startIdx = oldIndex;
+    int endIdx = oldIndex;
+    
+    // 同じ階層の開始位置を見つける
+    for (int i = oldIndex - 1; i >= 0; i--) {
+      if (visibleTasks[i].level < movedLevel) {
+        startIdx = i + 1;
+        break;
+      }
+      if (visibleTasks[i].level == movedLevel) {
+        startIdx = i;
+      }
+      if (i == 0) {
+        startIdx = 0;
+      }
+    }
+    
+    // 同じ階層の終了位置を見つける
+    for (int i = oldIndex + 1; i < visibleTasks.length; i++) {
+      if (visibleTasks[i].level < movedLevel) {
+        endIdx = i - 1;
+        break;
+      }
+      if (visibleTasks[i].level == movedLevel) {
+        endIdx = i;
+      }
+      if (i == visibleTasks.length - 1) {
+        endIdx = i;
+      }
+    }
+    
+    // 新しい位置が同じ階層内にあるか確認
+    if (newIndex < startIdx || newIndex > endIdx + 1) {
+      return; // 同じ階層内でのみ並び替えを許可
+    }
+    
+    // 実際の並び替えを実行
+    if (movedLevel == 0) {
+      // ルートタスク
+      final actualOldIndex = oldIndex - startIdx;
+      final actualNewIndex = (newIndex > oldIndex ? newIndex - 1 : newIndex) - startIdx;
+      taskProvider.reorderRootTasks(actualOldIndex, actualNewIndex);
+    } else {
+      // 子タスク - 親を見つける
+      for (int i = oldIndex - 1; i >= 0; i--) {
+        if (visibleTasks[i].level == movedLevel - 1) {
+          final parentId = visibleTasks[i].task.id;
+          final actualOldIndex = oldIndex - startIdx;
+          final actualNewIndex = (newIndex > oldIndex ? newIndex - 1 : newIndex) - startIdx;
+          taskProvider.reorderChildTasks(parentId, actualOldIndex, actualNewIndex);
+          break;
+        }
+      }
+    }
   }
 
   Widget _buildDateHeader(DateTime startDate, int totalDays) {
@@ -460,7 +583,7 @@ class _GanttChartViewState extends State<GanttChartView> {
             ),
           ),
           Positioned(
-            left: -8,
+            left: -10,
             top: -6,
             bottom: -6,
             child: _buildResizeHandle(
@@ -477,7 +600,7 @@ class _GanttChartViewState extends State<GanttChartView> {
             ),
           ),
           Positioned(
-            right: -8,
+            right: -10,
             top: -6,
             bottom: -6,
             child: _buildResizeHandle(
@@ -499,25 +622,10 @@ class _GanttChartViewState extends State<GanttChartView> {
   }
 
   Widget _buildResizeHandle({required Color color, required void Function(int deltaDays) onDrag}) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.resizeLeftRight,
-      child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onHorizontalDragUpdate: (details) {
-          final deltaDays = (details.delta.dx / dayWidth).round();
-          if (deltaDays != 0) {
-            onDrag(deltaDays);
-          }
-        },
-        child: Container(
-          width: 16,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border.all(color: color, width: 2),
-            borderRadius: BorderRadius.circular(3),
-          ),
-        ),
-      ),
+    return _ResizeHandle(
+      color: color,
+      onDrag: onDrag,
+      dayWidth: dayWidth,
     );
   }
 
@@ -552,5 +660,71 @@ class _GanttChartViewState extends State<GanttChartView> {
 
   String _formatDate(DateTime date) {
     return '${date.month}/${date.day}';
+  }
+}
+
+/// リサイズハンドルウィジェット
+class _ResizeHandle extends StatefulWidget {
+  final Color color;
+  final void Function(int deltaDays) onDrag;
+  final double dayWidth;
+
+  const _ResizeHandle({
+    required this.color,
+    required this.onDrag,
+    required this.dayWidth,
+  });
+
+  @override
+  State<_ResizeHandle> createState() => _ResizeHandleState();
+}
+
+class _ResizeHandleState extends State<_ResizeHandle> {
+  double _accumulatedDrag = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.resizeLeftRight,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onHorizontalDragStart: (details) {
+          _accumulatedDrag = 0;
+        },
+        onHorizontalDragUpdate: (details) {
+          _accumulatedDrag += details.delta.dx;
+          final deltaDays = (_accumulatedDrag / widget.dayWidth).round();
+          if (deltaDays != 0) {
+            widget.onDrag(deltaDays);
+            _accumulatedDrag = 0; // リセット
+          }
+        },
+        child: Container(
+          width: 20,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.9),
+            border: Border.all(color: widget.color, width: 2),
+            borderRadius: BorderRadius.circular(4),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 3,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+          child: Center(
+            child: Container(
+              width: 2,
+              height: 12,
+              decoration: BoxDecoration(
+                color: widget.color.withOpacity(0.6),
+                borderRadius: BorderRadius.circular(1),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
