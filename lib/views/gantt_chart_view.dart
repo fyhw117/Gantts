@@ -14,10 +14,10 @@ class GanttChartView extends StatefulWidget {
 class _GanttChartViewState extends State<GanttChartView> {
   final ScrollController _horizontalScrollController = ScrollController();
   final ScrollController _verticalScrollController = ScrollController();
-  
+
   static const double taskRowHeight = 60.0;
   static const double taskLabelWidth = 250.0;
-  static const double dayWidth = 40.0;
+  static const double dayWidth = 20.0;
   static const double headerHeight = 80.0;
 
   @override
@@ -32,7 +32,7 @@ class _GanttChartViewState extends State<GanttChartView> {
     return Consumer<TaskProvider>(
       builder: (context, taskProvider, child) {
         final visibleTasks = taskProvider.getVisibleTasksWithLevel();
-        
+
         if (visibleTasks.isEmpty) {
           return _buildEmptyState();
         }
@@ -47,44 +47,56 @@ class _GanttChartViewState extends State<GanttChartView> {
           children: [
             _buildHeader(),
             Expanded(
-              child: Row(
-                children: [
-                  _buildTaskNameColumn(visibleTasks, taskProvider, startDate, totalDays),
-                  Expanded(
-                    child: Scrollbar(
-                      controller: _horizontalScrollController,
-                      thumbVisibility: true,
-                      notificationPredicate: (notification) =>
-                          notification.metrics.axis == Axis.horizontal,
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
+              child: InteractiveViewer(
+                minScale: 0.1,
+                maxScale: 5.0,
+                boundaryMargin: const EdgeInsets.all(20.0),
+                constrained: true,
+                child: Row(
+                  children: [
+                    _buildTaskNameColumn(
+                      visibleTasks,
+                      taskProvider,
+                      startDate,
+                      totalDays,
+                    ),
+                    Expanded(
+                      child: Scrollbar(
                         controller: _horizontalScrollController,
-                        child: SizedBox(
-                          width: totalDays * dayWidth,
-                          child: Column(
-                            children: [
-                              _buildDateHeader(startDate, totalDays),
-                              Expanded(
-                                child: Scrollbar(
-                                  controller: _verticalScrollController,
-                                  thumbVisibility: true,
-                                  notificationPredicate: (notification) =>
-                                      notification.metrics.axis == Axis.vertical,
-                                  child: _buildReorderableGanttChart(
-                                    visibleTasks,
-                                    startDate,
-                                    totalDays,
-                                    taskProvider,
+                        thumbVisibility: true,
+                        notificationPredicate: (notification) =>
+                            notification.metrics.axis == Axis.horizontal,
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          controller: _horizontalScrollController,
+                          child: SizedBox(
+                            width: totalDays * dayWidth,
+                            child: Column(
+                              children: [
+                                _buildDateHeader(startDate, totalDays),
+                                Expanded(
+                                  child: Scrollbar(
+                                    controller: _verticalScrollController,
+                                    thumbVisibility: true,
+                                    notificationPredicate: (notification) =>
+                                        notification.metrics.axis ==
+                                        Axis.vertical,
+                                    child: _buildReorderableGanttChart(
+                                      visibleTasks,
+                                      startDate,
+                                      totalDays,
+                                      taskProvider,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],
@@ -98,18 +110,13 @@ class _GanttChartViewState extends State<GanttChartView> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Theme.of(context).primaryColor.withOpacity(0.1),
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.shade300),
-        ),
+        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
       ),
       child: const Row(
         children: [
           Text(
             'ガントチャート',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
         ],
       ),
@@ -123,10 +130,7 @@ class _GanttChartViewState extends State<GanttChartView> {
         children: [
           Icon(Icons.timeline, size: 80, color: Colors.grey),
           SizedBox(height: 16),
-          Text(
-            'タスクがありません',
-            style: TextStyle(fontSize: 18, color: Colors.grey),
-          ),
+          Text('タスクがありません', style: TextStyle(fontSize: 18, color: Colors.grey)),
           SizedBox(height: 8),
           Text(
             'WBSタブからタスクを作成してください',
@@ -137,7 +141,12 @@ class _GanttChartViewState extends State<GanttChartView> {
     );
   }
 
-  Widget _buildTaskNameColumn(List<TaskWithLevel> tasks, TaskProvider taskProvider, DateTime startDate, int totalDays) {
+  Widget _buildTaskNameColumn(
+    List<TaskWithLevel> tasks,
+    TaskProvider taskProvider,
+    DateTime startDate,
+    int totalDays,
+  ) {
     return Container(
       width: taskLabelWidth,
       decoration: BoxDecoration(
@@ -152,17 +161,12 @@ class _GanttChartViewState extends State<GanttChartView> {
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: Colors.grey.shade100,
-              border: Border(
-                bottom: BorderSide(color: Colors.grey.shade300),
-              ),
+              border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
             ),
             child: const Center(
               child: Text(
                 'タスク名',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),
             ),
           ),
@@ -177,7 +181,7 @@ class _GanttChartViewState extends State<GanttChartView> {
                   final taskWithLevel = tasks[index];
                   final task = taskWithLevel.task;
                   final level = taskWithLevel.level;
-                  
+
                   return Container(
                     height: taskRowHeight,
                     padding: EdgeInsets.only(
@@ -207,7 +211,8 @@ class _GanttChartViewState extends State<GanttChartView> {
                                         : Icons.chevron_right,
                                     size: 20,
                                   ),
-                                  onPressed: () => taskProvider.toggleExpand(task.id),
+                                  onPressed: () =>
+                                      taskProvider.toggleExpand(task.id),
                                 )
                               : const SizedBox(),
                         ),
@@ -241,20 +246,24 @@ class _GanttChartViewState extends State<GanttChartView> {
                                 ],
                               ),
                               const SizedBox(height: 1),
-                              Text(
-                                '${_formatDate(task.startDate)} - ${_formatDate(task.endDate)}',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              const SizedBox(height: 1),
-                              Text(
-                                '進捗: ${(task.progress * 100).toStringAsFixed(0)}%',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.grey[600],
-                                ),
+                              Row(
+                                children: [
+                                  Text(
+                                    '${_formatDate(task.startDate)} - ${_formatDate(task.endDate)}',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '進捗: ${(task.progress * 100).toStringAsFixed(0)}%',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -306,11 +315,11 @@ class _GanttChartViewState extends State<GanttChartView> {
   ) {
     final movedTask = visibleTasks[oldIndex];
     final movedLevel = movedTask.level;
-    
+
     // 同じ階層の範囲を見つける
     int startIdx = oldIndex;
     int endIdx = oldIndex;
-    
+
     // 同じ階層の開始位置を見つける
     for (int i = oldIndex - 1; i >= 0; i--) {
       if (visibleTasks[i].level < movedLevel) {
@@ -324,7 +333,7 @@ class _GanttChartViewState extends State<GanttChartView> {
         startIdx = 0;
       }
     }
-    
+
     // 同じ階層の終了位置を見つける
     for (int i = oldIndex + 1; i < visibleTasks.length; i++) {
       if (visibleTasks[i].level < movedLevel) {
@@ -338,17 +347,18 @@ class _GanttChartViewState extends State<GanttChartView> {
         endIdx = i;
       }
     }
-    
+
     // 新しい位置が同じ階層内にあるか確認
     if (newIndex < startIdx || newIndex > endIdx + 1) {
       return; // 同じ階層内でのみ並び替えを許可
     }
-    
+
     // 実際の並び替えを実行
     if (movedLevel == 0) {
       // ルートタスク
       final actualOldIndex = oldIndex - startIdx;
-      final actualNewIndex = (newIndex > oldIndex ? newIndex - 1 : newIndex) - startIdx;
+      final actualNewIndex =
+          (newIndex > oldIndex ? newIndex - 1 : newIndex) - startIdx;
       taskProvider.reorderRootTasks(actualOldIndex, actualNewIndex);
     } else {
       // 子タスク - 親を見つける
@@ -356,8 +366,13 @@ class _GanttChartViewState extends State<GanttChartView> {
         if (visibleTasks[i].level == movedLevel - 1) {
           final parentId = visibleTasks[i].task.id;
           final actualOldIndex = oldIndex - startIdx;
-          final actualNewIndex = (newIndex > oldIndex ? newIndex - 1 : newIndex) - startIdx;
-          taskProvider.reorderChildTasks(parentId, actualOldIndex, actualNewIndex);
+          final actualNewIndex =
+              (newIndex > oldIndex ? newIndex - 1 : newIndex) - startIdx;
+          taskProvider.reorderChildTasks(
+            parentId,
+            actualOldIndex,
+            actualNewIndex,
+          );
           break;
         }
       }
@@ -369,16 +384,12 @@ class _GanttChartViewState extends State<GanttChartView> {
       height: headerHeight,
       decoration: BoxDecoration(
         color: Colors.grey.shade100,
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.shade300),
-        ),
+        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
       ),
       child: Column(
         children: [
           Expanded(
-            child: Row(
-              children: _buildMonthHeaders(startDate, totalDays),
-            ),
+            child: Row(children: _buildMonthHeaders(startDate, totalDays)),
           ),
           Expanded(
             child: Row(
@@ -387,16 +398,14 @@ class _GanttChartViewState extends State<GanttChartView> {
                 final isWeekend =
                     date.weekday == DateTime.saturday ||
                     date.weekday == DateTime.sunday;
-                
+
                 return Container(
                   width: dayWidth,
                   decoration: BoxDecoration(
                     border: Border(
                       left: BorderSide(color: Colors.grey.shade300),
                     ),
-                    color: isWeekend
-                        ? Colors.blue.shade50
-                        : Colors.transparent,
+                    color: isWeekend ? Colors.blue.shade50 : Colors.transparent,
                   ),
                   child: Center(
                     child: Text(
@@ -404,8 +413,9 @@ class _GanttChartViewState extends State<GanttChartView> {
                       style: TextStyle(
                         fontSize: 12,
                         color: isWeekend ? Colors.blue : Colors.black87,
-                        fontWeight:
-                            isWeekend ? FontWeight.bold : FontWeight.normal,
+                        fontWeight: isWeekend
+                            ? FontWeight.bold
+                            : FontWeight.normal,
                       ),
                     ),
                   ),
@@ -426,7 +436,7 @@ class _GanttChartViewState extends State<GanttChartView> {
 
     for (int i = 0; i < totalDays; i++) {
       final date = startDate.add(Duration(days: i));
-      
+
       if (date.month == currentMonth && date.year == currentYear) {
         daysInCurrentMonth++;
       } else {
@@ -450,7 +460,7 @@ class _GanttChartViewState extends State<GanttChartView> {
             ),
           ),
         );
-        
+
         currentMonth = date.month;
         currentYear = date.year;
         daysInCurrentMonth = 1;
@@ -470,10 +480,7 @@ class _GanttChartViewState extends State<GanttChartView> {
           child: Center(
             child: Text(
               '$currentYear年${currentMonth}月',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             ),
           ),
         ),
@@ -483,13 +490,16 @@ class _GanttChartViewState extends State<GanttChartView> {
     return monthHeaders;
   }
 
-  Widget _buildGanttRow(Task task, DateTime chartStartDate, int totalDays, TaskProvider taskProvider) {
+  Widget _buildGanttRow(
+    Task task,
+    DateTime chartStartDate,
+    int totalDays,
+    TaskProvider taskProvider,
+  ) {
     return Container(
       height: taskRowHeight,
       decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.shade200),
-        ),
+        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
       ),
       child: Stack(
         clipBehavior: Clip.none,
@@ -500,13 +510,11 @@ class _GanttChartViewState extends State<GanttChartView> {
               final isWeekend =
                   date.weekday == DateTime.saturday ||
                   date.weekday == DateTime.sunday;
-              
+
               return Container(
                 width: dayWidth,
                 decoration: BoxDecoration(
-                  border: Border(
-                    left: BorderSide(color: Colors.grey.shade300),
-                  ),
+                  border: Border(left: BorderSide(color: Colors.grey.shade300)),
                   color: isWeekend
                       ? Colors.blue.shade50.withOpacity(0.3)
                       : Colors.transparent,
@@ -520,7 +528,11 @@ class _GanttChartViewState extends State<GanttChartView> {
     );
   }
 
-  Widget _buildTaskBar(Task task, DateTime chartStartDate, TaskProvider taskProvider) {
+  Widget _buildTaskBar(
+    Task task,
+    DateTime chartStartDate,
+    TaskProvider taskProvider,
+  ) {
     final taskStart = task.startDate;
     final taskEnd = task.endDate;
     final startOffset = taskStart.difference(chartStartDate).inDays;
@@ -621,12 +633,11 @@ class _GanttChartViewState extends State<GanttChartView> {
     );
   }
 
-  Widget _buildResizeHandle({required Color color, required void Function(int deltaDays) onDrag}) {
-    return _ResizeHandle(
-      color: color,
-      onDrag: onDrag,
-      dayWidth: dayWidth,
-    );
+  Widget _buildResizeHandle({
+    required Color color,
+    required void Function(int deltaDays) onDrag,
+  }) {
+    return _ResizeHandle(color: color, onDrag: onDrag, dayWidth: dayWidth);
   }
 
   Map<String, DateTime> _getDateRange(List<Task> tasks) {
@@ -652,10 +663,7 @@ class _GanttChartViewState extends State<GanttChartView> {
     minDate = DateTime(minDate.year, minDate.month, minDate.day);
     maxDate = DateTime(maxDate.year, maxDate.month, maxDate.day);
 
-    return {
-      'start': minDate,
-      'end': maxDate,
-    };
+    return {'start': minDate, 'end': maxDate};
   }
 
   String _formatDate(DateTime date) {
