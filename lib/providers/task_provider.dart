@@ -166,6 +166,7 @@ class TaskProvider extends ChangeNotifier {
   }
 
   void _deleteTaskRecursive(Task current, String taskId) {
+    if (current.children.isEmpty) return;
     current.children.removeWhere((child) => child.id == taskId);
     for (var child in current.children) {
       _deleteTaskRecursive(child, taskId);
@@ -269,6 +270,55 @@ class TaskProvider extends ChangeNotifier {
       }
     }
     return false;
+  }
+
+  /// 依存関係を追加
+  void addDependency(String fromTaskId, String toTaskId) {
+    if (fromTaskId == toTaskId) return; // 自分自身への依存は不可
+
+    final project = currentProject;
+    if (project == null) return;
+
+    // 循環参照チェックは簡易的に省略（必要なら実装）
+    _updateTaskDependency(project.tasks, toTaskId, fromTaskId, true);
+    notifyListeners();
+  }
+
+  /// 依存関係を削除
+  void removeDependency(String fromTaskId, String toTaskId) {
+    final project = currentProject;
+    if (project == null) return;
+
+    _updateTaskDependency(project.tasks, toTaskId, fromTaskId, false);
+    notifyListeners();
+  }
+
+  void _updateTaskDependency(
+    List<Task> tasks,
+    String targetTaskId,
+    String dependencyId,
+    bool isAdd,
+  ) {
+    for (var i = 0; i < tasks.length; i++) {
+      if (tasks[i].id == targetTaskId) {
+        List<String> newDependencies = List.from(tasks[i].dependencies);
+        if (isAdd) {
+          if (!newDependencies.contains(dependencyId)) {
+            newDependencies.add(dependencyId);
+          }
+        } else {
+          newDependencies.remove(dependencyId);
+        }
+        tasks[i] = tasks[i].copyWith(dependencies: newDependencies);
+        return;
+      }
+      _updateTaskDependency(
+        tasks[i].children,
+        targetTaskId,
+        dependencyId,
+        isAdd,
+      );
+    }
   }
 
   /// サンプルデータを読み込み

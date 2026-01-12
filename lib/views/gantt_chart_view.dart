@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/task_model.dart';
 import '../providers/task_provider.dart';
+import 'gantt_grid_painter.dart';
 
 /// ガントチャートビュー
 class GanttChartView extends StatefulWidget {
@@ -14,16 +15,28 @@ class GanttChartView extends StatefulWidget {
 class _GanttChartViewState extends State<GanttChartView> {
   final ScrollController _horizontalScrollController = ScrollController();
   final ScrollController _verticalScrollController = ScrollController();
+  final TransformationController _transformationController =
+      TransformationController();
 
   static const double taskRowHeight = 60.0;
   static const double taskLabelWidth = 250.0;
-  static const double dayWidth = 20.0;
   static const double headerHeight = 80.0;
+
+  double _dayWidth = 20.0;
+  bool _isCompact = false;
+
+  void _toggleViewMode() {
+    setState(() {
+      _isCompact = !_isCompact;
+      _dayWidth = _isCompact ? 5.0 : 20.0;
+    });
+  }
 
   @override
   void dispose() {
     _horizontalScrollController.dispose();
     _verticalScrollController.dispose();
+    _transformationController.dispose();
     super.dispose();
   }
 
@@ -48,6 +61,7 @@ class _GanttChartViewState extends State<GanttChartView> {
             _buildHeader(),
             Expanded(
               child: InteractiveViewer(
+                transformationController: _transformationController,
                 minScale: 0.1,
                 maxScale: 5.0,
                 boundaryMargin: const EdgeInsets.all(20.0),
@@ -61,38 +75,48 @@ class _GanttChartViewState extends State<GanttChartView> {
                       totalDays,
                     ),
                     Expanded(
-                      child: Scrollbar(
-                        controller: _horizontalScrollController,
-                        thumbVisibility: true,
-                        notificationPredicate: (notification) =>
-                            notification.metrics.axis == Axis.horizontal,
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          controller: _horizontalScrollController,
-                          child: SizedBox(
-                            width: totalDays * dayWidth,
-                            child: Column(
-                              children: [
-                                _buildDateHeader(startDate, totalDays),
-                                Expanded(
-                                  child: Scrollbar(
-                                    controller: _verticalScrollController,
-                                    thumbVisibility: true,
-                                    notificationPredicate: (notification) =>
-                                        notification.metrics.axis ==
-                                        Axis.vertical,
-                                    child: _buildReorderableGanttChart(
-                                      visibleTasks,
-                                      startDate,
-                                      totalDays,
-                                      taskProvider,
+                      child: Stack(
+                        children: [
+                          Scrollbar(
+                            controller: _horizontalScrollController,
+                            thumbVisibility: true,
+                            notificationPredicate: (notification) =>
+                                notification.metrics.axis == Axis.horizontal,
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              controller: _horizontalScrollController,
+                              child: SizedBox(
+                                width: totalDays * _dayWidth,
+                                child: Column(
+                                  children: [
+                                    _buildDateHeader(startDate, totalDays),
+                                    Expanded(
+                                      child: Stack(
+                                        children: [
+                                          Scrollbar(
+                                            controller:
+                                                _verticalScrollController,
+                                            thumbVisibility: true,
+                                            notificationPredicate:
+                                                (notification) =>
+                                                    notification.metrics.axis ==
+                                                    Axis.vertical,
+                                            child: _buildReorderableGanttChart(
+                                              visibleTasks,
+                                              startDate,
+                                              totalDays,
+                                              taskProvider,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
+                                  ],
                                 ),
-                              ],
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ),
                     ),
                   ],
@@ -112,11 +136,17 @@ class _GanttChartViewState extends State<GanttChartView> {
         color: Theme.of(context).primaryColor.withOpacity(0.1),
         border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
       ),
-      child: const Row(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
+          const Text(
             'ガントチャート',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          IconButton(
+            icon: Icon(_isCompact ? Icons.view_headline : Icons.view_column),
+            tooltip: _isCompact ? '標準表示に切り替え' : '全体表示に切り替え',
+            onPressed: _toggleViewMode,
           ),
         ],
       ),
@@ -395,29 +425,46 @@ class _GanttChartViewState extends State<GanttChartView> {
             child: Row(
               children: List.generate(totalDays, (index) {
                 final date = startDate.add(Duration(days: index));
+                final now = DateTime.now();
+                final isToday =
+                    date.year == now.year &&
+                    date.month == now.month &&
+                    date.day == now.day;
                 final isWeekend =
                     date.weekday == DateTime.saturday ||
                     date.weekday == DateTime.sunday;
 
                 return Container(
-                  width: dayWidth,
+                  width: _dayWidth,
                   decoration: BoxDecoration(
                     border: Border(
                       left: BorderSide(color: Colors.grey.shade300),
                     ),
-                    color: isWeekend ? Colors.blue.shade50 : Colors.transparent,
+                    color: isToday
+                        ? Theme.of(context).colorScheme.primary.withOpacity(0.3)
+                        : (isWeekend
+                              ? Theme.of(
+                                  context,
+                                ).colorScheme.tertiary.withOpacity(0.3)
+                              : Colors.transparent),
                   ),
                   child: Center(
-                    child: Text(
-                      '${date.day}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isWeekend ? Colors.blue : Colors.black87,
-                        fontWeight: isWeekend
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                      ),
-                    ),
+                    child: _isCompact
+                        ? null
+                        : Text(
+                            '${date.day}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isToday
+                                  ? Theme.of(context).colorScheme.primary
+                                  : (isWeekend
+                                        ? Theme.of(context).colorScheme.primary
+                                        : Colors.black87),
+                              fontWeight: isToday || isWeekend
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
+                          ),
                   ),
                 );
               }),
@@ -442,7 +489,7 @@ class _GanttChartViewState extends State<GanttChartView> {
       } else {
         monthHeaders.add(
           Container(
-            width: daysInCurrentMonth * dayWidth,
+            width: daysInCurrentMonth * _dayWidth,
             decoration: BoxDecoration(
               border: Border(
                 left: BorderSide(color: Colors.grey.shade400, width: 2),
@@ -456,6 +503,7 @@ class _GanttChartViewState extends State<GanttChartView> {
                   fontWeight: FontWeight.bold,
                   fontSize: 13,
                 ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ),
@@ -470,7 +518,7 @@ class _GanttChartViewState extends State<GanttChartView> {
     if (daysInCurrentMonth > 0) {
       monthHeaders.add(
         Container(
-          width: daysInCurrentMonth * dayWidth,
+          width: daysInCurrentMonth * _dayWidth,
           decoration: BoxDecoration(
             border: Border(
               left: BorderSide(color: Colors.grey.shade400, width: 2),
@@ -481,6 +529,7 @@ class _GanttChartViewState extends State<GanttChartView> {
             child: Text(
               '$currentYear年${currentMonth}月',
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ),
@@ -501,30 +550,41 @@ class _GanttChartViewState extends State<GanttChartView> {
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
       ),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Row(
-            children: List.generate(totalDays, (index) {
-              final date = chartStartDate.add(Duration(days: index));
-              final isWeekend =
-                  date.weekday == DateTime.saturday ||
-                  date.weekday == DateTime.sunday;
-
-              return Container(
-                width: dayWidth,
-                decoration: BoxDecoration(
-                  border: Border(left: BorderSide(color: Colors.grey.shade300)),
-                  color: isWeekend
-                      ? Colors.blue.shade50.withOpacity(0.3)
-                      : Colors.transparent,
-                ),
-              );
-            }),
-          ),
-          _buildTaskBar(task, chartStartDate, taskProvider),
-        ],
+      child: _buildGanttRowContent(
+        task,
+        chartStartDate,
+        totalDays,
+        taskProvider,
       ),
+    );
+  }
+
+  Widget _buildGanttRowContent(
+    Task task,
+    DateTime chartStartDate,
+    int totalDays,
+    TaskProvider taskProvider,
+  ) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        SizedBox(
+          height: taskRowHeight,
+          width: totalDays * _dayWidth,
+          child: CustomPaint(
+            painter: GanttGridPainter(
+              startDate: chartStartDate,
+              totalDays: totalDays,
+              dayWidth: _dayWidth,
+              primaryColor: Theme.of(context).colorScheme.primary,
+              secondaryColor: Theme.of(context).colorScheme.secondary,
+              tertiaryColor: Theme.of(context).colorScheme.tertiary,
+              gridColor: Colors.grey.shade300,
+            ),
+          ),
+        ),
+        _buildTaskBar(task, chartStartDate, taskProvider),
+      ],
     );
   }
 
@@ -537,8 +597,8 @@ class _GanttChartViewState extends State<GanttChartView> {
     final taskEnd = task.endDate;
     final startOffset = taskStart.difference(chartStartDate).inDays;
     final duration = taskEnd.difference(taskStart).inDays + 1;
-    final left = startOffset * dayWidth;
-    final width = duration * dayWidth;
+    final left = startOffset * _dayWidth;
+    final width = duration * _dayWidth;
 
     return Positioned(
       left: left,
@@ -547,6 +607,7 @@ class _GanttChartViewState extends State<GanttChartView> {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
+          // タスクバー本体
           Container(
             width: width,
             decoration: BoxDecoration(
@@ -562,6 +623,7 @@ class _GanttChartViewState extends State<GanttChartView> {
             ),
             child: Stack(
               children: [
+                // 進捗バー
                 Container(
                   width: width * task.progress,
                   decoration: BoxDecoration(
@@ -569,31 +631,10 @@ class _GanttChartViewState extends State<GanttChartView> {
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Text(
-                      '${task.name} (${(task.progress * 100).toStringAsFixed(0)}%)',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                        shadows: [
-                          Shadow(
-                            color: Colors.black45,
-                            offset: Offset(1, 1),
-                            blurRadius: 2,
-                          ),
-                        ],
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ),
               ],
             ),
           ),
+          // 左リサイズハンドル
           Positioned(
             left: -10,
             top: -6,
@@ -611,6 +652,7 @@ class _GanttChartViewState extends State<GanttChartView> {
               },
             ),
           ),
+          // 右リサイズハンドル
           Positioned(
             right: -10,
             top: -6,
@@ -628,6 +670,46 @@ class _GanttChartViewState extends State<GanttChartView> {
               },
             ),
           ),
+          // 進捗ドラッグハンドル (最後に配置して最前面にする)
+          Positioned(
+            left: (width * task.progress) - 10,
+            top: -4,
+            bottom: -4,
+            child: GestureDetector(
+              onHorizontalDragUpdate: (details) {
+                final scale = _transformationController.value
+                    .getMaxScaleOnAxis();
+                final delta = details.delta.dx / scale;
+                final newWidth = (width * task.progress) + delta;
+                final newProgress = (newWidth / width).clamp(0.0, 1.0);
+                taskProvider.updateTask(
+                  task.id,
+                  task.copyWith(progress: newProgress),
+                );
+              },
+              child: Container(
+                width: 20,
+                color: Colors.transparent, // ヒット領域確保
+                child: Center(
+                  child: Container(
+                    width: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: Colors.grey.shade600),
+                      borderRadius: BorderRadius.circular(2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 2,
+                          offset: const Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -637,7 +719,7 @@ class _GanttChartViewState extends State<GanttChartView> {
     required Color color,
     required void Function(int deltaDays) onDrag,
   }) {
-    return _ResizeHandle(color: color, onDrag: onDrag, dayWidth: dayWidth);
+    return _ResizeHandle(color: color, onDrag: onDrag, dayWidth: _dayWidth);
   }
 
   Map<String, DateTime> _getDateRange(List<Task> tasks) {

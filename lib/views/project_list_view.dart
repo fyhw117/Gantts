@@ -11,7 +11,8 @@ class ProjectListView extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('プロジェクト一覧'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
       ),
       body: Consumer<TaskProvider>(
         builder: (context, taskProvider, child) {

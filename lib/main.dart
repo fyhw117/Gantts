@@ -20,7 +20,12 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         title: 'WBS & ガントチャート',
         theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFF607557),
+            primary: const Color(0xFF607557),
+            secondary: const Color(0xFFDAAB55),
+            tertiary: const Color(0xFFF3D083),
+          ),
           useMaterial3: true,
         ),
         home: const MyHomePage(),
@@ -63,10 +68,17 @@ class _MyHomePageState extends State<MyHomePage>
 
         return Scaffold(
           appBar: AppBar(
-            backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            foregroundColor: Theme.of(context).colorScheme.onPrimary,
             title: Text(title),
             bottom: TabBar(
               controller: _tabController,
+              labelColor: Theme.of(context).colorScheme.onPrimary,
+              unselectedLabelColor: Theme.of(
+                context,
+              ).colorScheme.onPrimary.withOpacity(0.7),
+              indicatorColor: Theme.of(context).colorScheme.onPrimary,
+              indicatorWeight: 4.0, // 太くしてより目立たせる
               tabs: const [
                 Tab(icon: Icon(Icons.account_tree), text: 'WBS'),
                 Tab(icon: Icon(Icons.timeline), text: 'ガントチャート'),

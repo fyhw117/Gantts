@@ -18,6 +18,7 @@ class WBSView extends StatelessWidget {
               child: taskProvider.rootTasks.isEmpty
                   ? _buildEmptyState()
                   : ReorderableListView.builder(
+                      buildDefaultDragHandles: false,
                       onReorder: (oldIndex, newIndex) {
                         taskProvider.reorderRootTasks(oldIndex, newIndex);
                       },
@@ -28,6 +29,7 @@ class WBSView extends StatelessWidget {
                           context,
                           taskProvider,
                           task,
+                          index,
                           0,
                           key: ValueKey(task.id),
                         );
@@ -45,18 +47,13 @@ class WBSView extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Theme.of(context).primaryColor.withOpacity(0.1),
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.shade300),
-        ),
+        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
       ),
       child: Row(
         children: [
           const Text(
             'WBS - 作業分解構成図',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const Spacer(),
           ElevatedButton.icon(
@@ -76,10 +73,7 @@ class WBSView extends StatelessWidget {
         children: [
           Icon(Icons.folder_open, size: 80, color: Colors.grey),
           SizedBox(height: 16),
-          Text(
-            'タスクがありません',
-            style: TextStyle(fontSize: 18, color: Colors.grey),
-          ),
+          Text('タスクがありません', style: TextStyle(fontSize: 18, color: Colors.grey)),
           SizedBox(height: 8),
           Text(
             'タスク追加ボタンから新しいタスクを作成してください',
@@ -94,6 +88,7 @@ class WBSView extends StatelessWidget {
     BuildContext context,
     TaskProvider taskProvider,
     Task task,
+    int index,
     int level, {
     Key? key,
   }) {
@@ -101,23 +96,27 @@ class WBSView extends StatelessWidget {
       key: key,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildTaskItem(context, taskProvider, task, level),
+        _buildTaskItem(context, taskProvider, task, index, level),
         if (task.isExpanded && task.hasChildren)
-          ReorderableListView(
+          ReorderableListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
+            buildDefaultDragHandles: false,
             onReorder: (oldIndex, newIndex) {
               taskProvider.reorderChildTasks(task.id, oldIndex, newIndex);
             },
-            children: task.children.map((child) {
+            itemCount: task.children.length,
+            itemBuilder: (context, childIndex) {
+              final child = task.children[childIndex];
               return _buildTaskTree(
                 context,
                 taskProvider,
                 child,
+                childIndex,
                 level + 1,
                 key: ValueKey(child.id),
               );
-            }).toList(),
+            },
           ),
       ],
     );
@@ -126,25 +125,36 @@ class WBSView extends StatelessWidget {
   Widget _buildTaskItem(
     BuildContext context,
     TaskProvider taskProvider,
-    Task task,
+    Task task, // taskを追加
+    int index, // indexを追加
     int level,
   ) {
     return Container(
       margin: EdgeInsets.only(left: level * 24.0),
       decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.shade200),
-        ),
+        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
       ),
       child: ListTile(
-        leading: task.hasChildren
-            ? IconButton(
-                icon: Icon(
-                  task.isExpanded ? Icons.expand_more : Icons.chevron_right,
-                ),
-                onPressed: () => taskProvider.toggleExpand(task.id),
-              )
-            : const SizedBox(width: 48),
+        leading: Row(
+          // 変更点4: Rowで囲み、ドラッグハンドルと展開ボタンを並べる
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ReorderableDragStartListener(
+              // 変更点4: ドラッグハンドルを追加
+              index: index,
+              child: const Icon(Icons.drag_indicator, color: Colors.grey),
+            ),
+            const SizedBox(width: 8),
+            task.hasChildren
+                ? IconButton(
+                    icon: Icon(
+                      task.isExpanded ? Icons.expand_more : Icons.chevron_right,
+                    ),
+                    onPressed: () => taskProvider.toggleExpand(task.id),
+                  )
+                : const SizedBox(width: 48), // 展開ボタンがない場合のスペースを確保
+          ],
+        ),
         title: Row(
           children: [
             Container(
@@ -156,9 +166,7 @@ class WBSView extends StatelessWidget {
             Expanded(
               child: Text(
                 task.name,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
           ],
@@ -229,11 +237,7 @@ class WBSView extends StatelessWidget {
             const PopupMenuItem(
               value: 'edit',
               child: Row(
-                children: [
-                  Icon(Icons.edit),
-                  SizedBox(width: 8),
-                  Text('編集'),
-                ],
+                children: [Icon(Icons.edit), SizedBox(width: 8), Text('編集')],
               ),
             ),
             const PopupMenuItem(
@@ -346,10 +350,12 @@ class _TaskEditDialogState extends State<TaskEditDialog> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.task?.name ?? '');
-    _descriptionController =
-        TextEditingController(text: widget.task?.description ?? '');
+    _descriptionController = TextEditingController(
+      text: widget.task?.description ?? '',
+    );
     _startDate = widget.task?.startDate ?? DateTime.now();
-    _endDate = widget.task?.endDate ?? DateTime.now().add(const Duration(days: 7));
+    _endDate =
+        widget.task?.endDate ?? DateTime.now().add(const Duration(days: 7));
     _progress = widget.task?.progress ?? 0.0;
     _color = widget.task?.color ?? Colors.blue;
   }
@@ -434,31 +440,32 @@ class _TaskEditDialogState extends State<TaskEditDialog> {
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
-              children: [
-                Colors.blue,
-                Colors.green,
-                Colors.orange,
-                Colors.red,
-                Colors.purple,
-                Colors.teal,
-                Colors.pink,
-                Colors.amber,
-              ].map((color) {
-                return GestureDetector(
-                  onTap: () => setState(() => _color = color),
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                      border: _color == color
-                          ? Border.all(color: Colors.black, width: 3)
-                          : null,
-                    ),
-                  ),
-                );
-              }).toList(),
+              children:
+                  [
+                    Colors.blue,
+                    Colors.green,
+                    Colors.orange,
+                    Colors.red,
+                    Colors.purple,
+                    Colors.teal,
+                    Colors.pink,
+                    Colors.amber,
+                  ].map((color) {
+                    return GestureDetector(
+                      onTap: () => setState(() => _color = color),
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                          border: _color == color
+                              ? Border.all(color: Colors.black, width: 3)
+                              : null,
+                        ),
+                      ),
+                    );
+                  }).toList(),
             ),
           ],
         ),
@@ -471,14 +478,16 @@ class _TaskEditDialogState extends State<TaskEditDialog> {
         ElevatedButton(
           onPressed: () {
             if (_nameController.text.isEmpty) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('タスク名を入力してください')),
-              );
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text('タスク名を入力してください')));
               return;
             }
 
             final task = Task(
-              id: widget.task?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+              id:
+                  widget.task?.id ??
+                  DateTime.now().millisecondsSinceEpoch.toString(),
               name: _nameController.text,
               description: _descriptionController.text,
               startDate: _startDate,
