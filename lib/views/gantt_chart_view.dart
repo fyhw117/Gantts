@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/task_model.dart';
 import '../providers/task_provider.dart';
 import 'gantt_grid_painter.dart';
+import 'dependency_painter.dart';
 
 /// ガントチャートビュー
 class GanttChartView extends StatefulWidget {
@@ -24,6 +25,7 @@ class _GanttChartViewState extends State<GanttChartView> {
 
   double _dayWidth = 20.0;
   bool _isCompact = false;
+  bool _canPanChart = true;
 
   void _toggleViewMode() {
     setState(() {
@@ -62,6 +64,8 @@ class _GanttChartViewState extends State<GanttChartView> {
             Expanded(
               child: InteractiveViewer(
                 transformationController: _transformationController,
+                panEnabled: _canPanChart,
+                scaleEnabled: _canPanChart,
                 minScale: 0.1,
                 maxScale: 5.0,
                 boundaryMargin: const EdgeInsets.all(20.0),
@@ -101,11 +105,36 @@ class _GanttChartViewState extends State<GanttChartView> {
                                                 (notification) =>
                                                     notification.metrics.axis ==
                                                     Axis.vertical,
-                                            child: _buildReorderableGanttChart(
-                                              visibleTasks,
-                                              startDate,
-                                              totalDays,
-                                              taskProvider,
+                                            child: SingleChildScrollView(
+                                              controller:
+                                                  _verticalScrollController,
+                                              child: Stack(
+                                                children: [
+                                                  // 依存関係の矢印レイヤー
+                                                  CustomPaint(
+                                                    size: Size(
+                                                      totalDays * _dayWidth,
+                                                      visibleTasks.length *
+                                                          taskRowHeight,
+                                                    ),
+                                                    painter: DependencyPainter(
+                                                      visibleTasks:
+                                                          visibleTasks,
+                                                      startDate: startDate,
+                                                      dayWidth: _dayWidth,
+                                                      rowHeight: taskRowHeight,
+                                                      headerHeight: 0,
+                                                    ),
+                                                  ),
+                                                  // タスクリスト
+                                                  _buildGanttChartList(
+                                                    visibleTasks,
+                                                    startDate,
+                                                    totalDays,
+                                                    taskProvider,
+                                                  ),
+                                                ],
+                                              ),
                                             ),
                                           ),
                                         ],
@@ -310,103 +339,25 @@ class _GanttChartViewState extends State<GanttChartView> {
     );
   }
 
-  Widget _buildReorderableGanttChart(
+  Widget _buildGanttChartList(
     List<TaskWithLevel> visibleTasks,
     DateTime startDate,
     int totalDays,
     TaskProvider taskProvider,
   ) {
-    return ReorderableListView.builder(
-      buildDefaultDragHandles: false,
-      onReorder: (oldIndex, newIndex) {
-        _handleReorder(oldIndex, newIndex, visibleTasks, taskProvider);
-      },
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       itemCount: visibleTasks.length,
       itemBuilder: (context, index) {
-        return ReorderableDragStartListener(
-          index: index,
-          key: ValueKey(visibleTasks[index].task.id),
-          child: _buildGanttRow(
-            visibleTasks[index].task,
-            startDate,
-            totalDays,
-            taskProvider,
-          ),
+        return _buildGanttRow(
+          visibleTasks[index].task,
+          startDate,
+          totalDays,
+          taskProvider,
         );
       },
     );
-  }
-
-  void _handleReorder(
-    int oldIndex,
-    int newIndex,
-    List<TaskWithLevel> visibleTasks,
-    TaskProvider taskProvider,
-  ) {
-    final movedTask = visibleTasks[oldIndex];
-    final movedLevel = movedTask.level;
-
-    // 同じ階層の範囲を見つける
-    int startIdx = oldIndex;
-    int endIdx = oldIndex;
-
-    // 同じ階層の開始位置を見つける
-    for (int i = oldIndex - 1; i >= 0; i--) {
-      if (visibleTasks[i].level < movedLevel) {
-        startIdx = i + 1;
-        break;
-      }
-      if (visibleTasks[i].level == movedLevel) {
-        startIdx = i;
-      }
-      if (i == 0) {
-        startIdx = 0;
-      }
-    }
-
-    // 同じ階層の終了位置を見つける
-    for (int i = oldIndex + 1; i < visibleTasks.length; i++) {
-      if (visibleTasks[i].level < movedLevel) {
-        endIdx = i - 1;
-        break;
-      }
-      if (visibleTasks[i].level == movedLevel) {
-        endIdx = i;
-      }
-      if (i == visibleTasks.length - 1) {
-        endIdx = i;
-      }
-    }
-
-    // 新しい位置が同じ階層内にあるか確認
-    if (newIndex < startIdx || newIndex > endIdx + 1) {
-      return; // 同じ階層内でのみ並び替えを許可
-    }
-
-    // 実際の並び替えを実行
-    if (movedLevel == 0) {
-      // ルートタスク
-      final actualOldIndex = oldIndex - startIdx;
-      final actualNewIndex =
-          (newIndex > oldIndex ? newIndex - 1 : newIndex) - startIdx;
-      taskProvider.reorderRootTasks(actualOldIndex, actualNewIndex);
-    } else {
-      // 子タスク - 親を見つける
-      for (int i = oldIndex - 1; i >= 0; i--) {
-        if (visibleTasks[i].level == movedLevel - 1) {
-          final parentId = visibleTasks[i].task.id;
-          final actualOldIndex = oldIndex - startIdx;
-          final actualNewIndex =
-              (newIndex > oldIndex ? newIndex - 1 : newIndex) - startIdx;
-          taskProvider.reorderChildTasks(
-            parentId,
-            actualOldIndex,
-            actualNewIndex,
-          );
-          break;
-        }
-      }
-    }
   }
 
   Widget _buildDateHeader(DateTime startDate, int totalDays) {
@@ -600,6 +551,12 @@ class _GanttChartViewState extends State<GanttChartView> {
     final left = startOffset * _dayWidth;
     final width = duration * _dayWidth;
 
+    // 進捗ハンドルの位置計算（0%と100%でリサイズハンドルと重ならないようにクランプ）
+    final progressHandlePos = (width * task.progress).clamp(
+      12.0,
+      width > 24 ? width - 12.0 : 12.0,
+    );
+
     return Positioned(
       left: left,
       top: 10,
@@ -670,9 +627,87 @@ class _GanttChartViewState extends State<GanttChartView> {
               },
             ),
           ),
+          // 依存関係レシーバー（左端 - ターゲット）
+          Positioned(
+            left: -24,
+            top: 0,
+            bottom: 0,
+            child: DragTarget<String>(
+              onWillAccept: (data) => data != null && data != task.id,
+              onAccept: (data) => taskProvider.addDependency(data, task.id),
+              builder: (context, candidateData, rejectedData) {
+                return Container(
+                  width: 20,
+                  alignment: Alignment.center,
+                  child: candidateData.isNotEmpty
+                      ? const Icon(Icons.circle, color: Colors.blue, size: 12)
+                      : const SizedBox(),
+                );
+              },
+            ),
+          ),
+          // 依存関係コネクタ（右端 - ソース）
+          Positioned(
+            right: -34,
+            top: 0,
+            bottom: 0,
+            child: Listener(
+              onPointerDown: (_) {
+                setState(() {
+                  _canPanChart = false;
+                });
+              },
+              onPointerUp: (_) {
+                setState(() {
+                  _canPanChart = true;
+                });
+              },
+              onPointerCancel: (_) {
+                setState(() {
+                  _canPanChart = true;
+                });
+              },
+              child: Draggable<String>(
+                data: task.id,
+                onDragEnd: (_) {
+                  setState(() {
+                    _canPanChart = true;
+                  });
+                },
+                onDraggableCanceled: (_, __) {
+                  setState(() {
+                    _canPanChart = true;
+                  });
+                },
+                onDragCompleted: () {
+                  setState(() {
+                    _canPanChart = true;
+                  });
+                },
+                feedback: Material(
+                  color: Colors.transparent,
+                  child: const Icon(
+                    Icons.play_arrow,
+                    size: 24,
+                    color: Colors.blue,
+                  ),
+                ),
+                child: Container(
+                  width: 30,
+                  alignment: Alignment.center,
+                  color: Colors.transparent,
+                  child: const Icon(
+                    Icons.play_arrow,
+                    size: 20,
+                    color: Colors.grey,
+                  ),
+                ),
+              ),
+            ),
+          ),
           // 進捗ドラッグハンドル (最後に配置して最前面にする)
           Positioned(
-            left: (width * task.progress) - 10,
+            left: progressHandlePos - 10,
             top: -4,
             bottom: -4,
             child: GestureDetector(
