@@ -39,6 +39,6 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIRequiresFullScreen</key>
-<true/>
+	<true/>
 </dict>
 </plist>
