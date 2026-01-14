@@ -26,7 +26,7 @@ class _GanttChartViewState extends State<GanttChartView> {
   late ScrollController _gridHorizontalScrollController;
 
   static const double taskRowHeight = 40.0;
-  static const double taskLabelWidth = 180.0;
+  static const double taskLabelWidth = 160.0;
   static const double headerHeight = 40.0;
 
   double _dayWidth = 20.0;
