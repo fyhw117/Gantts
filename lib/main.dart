@@ -18,7 +18,8 @@ class MyApp extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (_) => TaskProvider()..loadSampleData(),
       child: MaterialApp(
-        title: 'WBS & ガントチャート',
+        debugShowCheckedModeBanner: false,
+        title: 'GanttChart',
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
             seedColor: const Color(0xFF607557),
