@@ -171,26 +171,29 @@ class _GanttChartViewState extends State<GanttChartView> {
                                     physics: const ClampingScrollPhysics(),
                                     child: Stack(
                                       children: [
-                                        // 依存関係の矢印レイヤー
-                                        CustomPaint(
-                                          size: Size(
-                                            totalDays * _dayWidth,
-                                            visibleTasks.length * taskRowHeight,
-                                          ),
-                                          painter: DependencyPainter(
-                                            visibleTasks: visibleTasks,
-                                            startDate: startDate,
-                                            dayWidth: _dayWidth,
-                                            rowHeight: taskRowHeight,
-                                            headerHeight: 0,
-                                          ),
-                                        ),
                                         // タスクリスト
                                         _buildGanttChartList(
                                           visibleTasks,
                                           startDate,
                                           totalDays,
                                           taskProvider,
+                                        ),
+                                        // 依存関係の矢印レイヤー
+                                        IgnorePointer(
+                                          child: CustomPaint(
+                                            size: Size(
+                                              totalDays * _dayWidth,
+                                              visibleTasks.length *
+                                                  taskRowHeight,
+                                            ),
+                                            painter: DependencyPainter(
+                                              visibleTasks: visibleTasks,
+                                              startDate: startDate,
+                                              dayWidth: _dayWidth,
+                                              rowHeight: taskRowHeight,
+                                              headerHeight: 0,
+                                            ),
+                                          ),
                                         ),
                                       ],
                                     ),

@@ -61,14 +61,13 @@ class DependencyPainter extends CustomPainter {
         final sourceIndex = dependencyIndex;
         final targetIndex = i;
 
-        final sourceEndX = _getX(
-          sourceTask.endDate.difference(startDate).inDays + 1,
-        );
+        final sourceEndX =
+            _getX(sourceTask.endDate.difference(startDate).inDays + 1) + 3.0;
         final sourceY =
             headerHeight + (sourceIndex * rowHeight) + (rowHeight / 2);
 
         final targetStartX =
-            _getX(targetTask.startDate.difference(startDate).inDays) - 6.0;
+            _getX(targetTask.startDate.difference(startDate).inDays) - 3.0;
         final targetY =
             headerHeight + (targetIndex * rowHeight) + (rowHeight / 2);
 
