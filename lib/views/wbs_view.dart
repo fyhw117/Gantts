@@ -44,7 +44,7 @@ class WBSView extends StatelessWidget {
 
   Widget _buildHeader(BuildContext context, TaskProvider taskProvider) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
         color: Theme.of(context).primaryColor.withOpacity(0.1),
         border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
@@ -52,8 +52,8 @@ class WBSView extends StatelessWidget {
       child: Row(
         children: [
           const Text(
-            'WBS - 作業分解構成図',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            'WBS',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const Spacer(),
           ElevatedButton.icon(
@@ -135,6 +135,10 @@ class WBSView extends StatelessWidget {
         border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
       ),
       child: ListTile(
+        dense: true,
+        visualDensity: const VisualDensity(vertical: -4),
+        minVerticalPadding: 0,
+        contentPadding: const EdgeInsets.only(left: 8, right: 8),
         leading: Row(
           // 変更点4: Rowで囲み、ドラッグハンドルと展開ボタンを並べる
           mainAxisSize: MainAxisSize.min,
@@ -144,29 +148,34 @@ class WBSView extends StatelessWidget {
               index: index,
               child: const Icon(Icons.drag_indicator, color: Colors.grey),
             ),
-            const SizedBox(width: 8),
             task.hasChildren
                 ? IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    iconSize: 16,
                     icon: Icon(
                       task.isExpanded ? Icons.expand_more : Icons.chevron_right,
                     ),
                     onPressed: () => taskProvider.toggleExpand(task.id),
                   )
-                : const SizedBox(width: 48), // 展開ボタンがない場合のスペースを確保
+                : const SizedBox(width: 16), // 展開ボタンがない場合のスペースを確保
           ],
         ),
         title: Row(
           children: [
             Container(
               width: 4,
-              height: 20,
+              height: 14,
               color: task.color,
               margin: const EdgeInsets.only(right: 8),
             ),
             Expanded(
               child: Text(
                 task.name,
-                style: const TextStyle(fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
               ),
             ),
           ],
@@ -174,42 +183,30 @@ class WBSView extends StatelessWidget {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (task.description.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(task.description),
-            ],
-            const SizedBox(height: 4),
+            // const SizedBox(height: 4), // Removed for compactness
             Row(
               children: [
-                Icon(Icons.calendar_today, size: 14, color: Colors.grey[600]),
+                Icon(Icons.calendar_today, size: 12, color: Colors.grey[600]),
                 const SizedBox(width: 4),
                 Text(
                   '${_formatDate(task.startDate)} - ${_formatDate(task.endDate)}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                 ),
                 const SizedBox(width: 16),
-                Icon(Icons.schedule, size: 14, color: Colors.grey[600]),
+                Icon(Icons.schedule, size: 12, color: Colors.grey[600]),
                 const SizedBox(width: 4),
                 Text(
                   '${task.durationInDays}日',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                 ),
               ],
-            ),
-            const SizedBox(height: 4),
-            LinearProgressIndicator(
-              value: task.progress,
-              backgroundColor: Colors.grey[300],
-              valueColor: AlwaysStoppedAnimation<Color>(task.color),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              '進捗: ${(task.progress * 100).toStringAsFixed(0)}%',
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
             ),
           ],
         ),
         trailing: PopupMenuButton<String>(
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+          iconSize: 20,
           onSelected: (value) {
             switch (value) {
               case 'add_child':
@@ -387,7 +384,7 @@ class _TaskEditDialogState extends State<TaskEditDialog> {
             TextField(
               controller: _descriptionController,
               decoration: const InputDecoration(
-                labelText: '説明',
+                labelText: 'メモ',
                 border: OutlineInputBorder(),
               ),
               maxLines: 3,

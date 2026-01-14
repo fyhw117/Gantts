@@ -70,7 +70,8 @@ class _MyHomePageState extends State<MyHomePage>
           appBar: AppBar(
             backgroundColor: Theme.of(context).colorScheme.primary,
             foregroundColor: Theme.of(context).colorScheme.onPrimary,
-            title: Text(title),
+            title: Text(title, style: const TextStyle(fontSize: 16)),
+            toolbarHeight: 40,
             bottom: TabBar(
               controller: _tabController,
               labelColor: Theme.of(context).colorScheme.onPrimary,
@@ -78,10 +79,28 @@ class _MyHomePageState extends State<MyHomePage>
                 context,
               ).colorScheme.onPrimary.withOpacity(0.7),
               indicatorColor: Theme.of(context).colorScheme.onPrimary,
-              indicatorWeight: 4.0, // 太くしてより目立たせる
+              indicatorWeight: 2.0,
               tabs: const [
-                Tab(icon: Icon(Icons.account_tree), text: 'WBS'),
-                Tab(icon: Icon(Icons.timeline), text: 'ガントチャート'),
+                Tab(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.account_tree, size: 18),
+                      SizedBox(width: 8),
+                      Text('WBS'),
+                    ],
+                  ),
+                ),
+                Tab(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.timeline, size: 18),
+                      SizedBox(width: 8),
+                      Text('ガントチャート'),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
