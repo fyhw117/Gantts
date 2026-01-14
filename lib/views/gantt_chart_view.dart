@@ -32,6 +32,7 @@ class _GanttChartViewState extends State<GanttChartView> {
   double _dayWidth = 20.0;
   double _baseDayWidth = 20.0;
   bool _isCompact = false; // "標準表示"状態かどうか（アイコンの意味と逆にならないように注意）
+  String? _dependencySourceId; // 関連付けの開始点となるタスクID
 
   @override
   void initState() {
@@ -605,6 +606,9 @@ class _GanttChartViewState extends State<GanttChartView> {
             decoration: BoxDecoration(
               color: task.color.withOpacity(0.3),
               borderRadius: BorderRadius.circular(4),
+              border: _dependencySourceId == task.id
+                  ? Border.all(color: Colors.red, width: 2)
+                  : null,
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.1),
@@ -613,17 +617,52 @@ class _GanttChartViewState extends State<GanttChartView> {
                 ),
               ],
             ),
-            child: Stack(
-              children: [
-                // 進捗バー
-                Container(
-                  width: width * task.progress,
-                  decoration: BoxDecoration(
-                    color: task.color,
-                    borderRadius: BorderRadius.circular(4),
+            child: GestureDetector(
+              onTap: () {
+                if (_dependencySourceId != null) {
+                  if (_dependencySourceId != task.id) {
+                    if (task.dependencies.contains(_dependencySourceId)) {
+                      taskProvider.removeDependency(
+                        _dependencySourceId!,
+                        task.id,
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('関連付けを解除しました')),
+                      );
+                    } else {
+                      taskProvider.addDependency(_dependencySourceId!, task.id);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('関連付けを追加しました')),
+                      );
+                    }
+                    setState(() {
+                      _dependencySourceId = null;
+                    });
+                  } else {
+                    setState(() {
+                      _dependencySourceId = null;
+                    });
+                  }
+                }
+              },
+              onSecondaryTapUp: (details) {
+                _showContextMenu(context, details.globalPosition, task);
+              },
+              onLongPressStart: (details) {
+                _showContextMenu(context, details.globalPosition, task);
+              },
+              child: Stack(
+                children: [
+                  // 進捗バー
+                  Container(
+                    width: width * task.progress,
+                    decoration: BoxDecoration(
+                      color: task.color,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           // 左リサイズハンドル
@@ -681,39 +720,14 @@ class _GanttChartViewState extends State<GanttChartView> {
               },
             ),
           ),
-          // 依存関係コネクタ（右端 - ソース）
-          Positioned(
-            right: -34,
-            top: 0,
-            bottom: 0,
-            child: Draggable<String>(
-              data: task.id,
-              feedback: Material(
-                color: Colors.transparent,
-                child: const Icon(
-                  Icons.play_arrow,
-                  size: 24,
-                  color: Colors.blue,
-                ),
-              ),
-              child: Container(
-                width: 30,
-                alignment: Alignment.center,
-                color: Colors.transparent,
-                child: const Icon(
-                  Icons.play_arrow,
-                  size: 20,
-                  color: Colors.grey,
-                ),
-              ),
-            ),
-          ),
+
           // 進捗ドラッグハンドル (最後に配置して最前面にする)
           Positioned(
-            left: progressHandlePos - 10,
-            top: -6, // 上にはみ出す
+            left: progressHandlePos - 20,
+            top: -2, // 上にはみ出す（タッチ領域拡大）
             bottom: 12, // 下半分はリサイズハンドル用に空ける
             child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
               onHorizontalDragUpdate: (details) {
                 final delta = details.delta.dx;
                 final newWidth = (width * task.progress) + delta;
@@ -724,23 +738,14 @@ class _GanttChartViewState extends State<GanttChartView> {
                 );
               },
               child: Container(
-                width: 20,
+                width: 40,
                 color: Colors.transparent, // ヒット領域確保
                 alignment: Alignment.topCenter,
-                child: Container(
-                  width: 4,
-                  height: 12,
-                  decoration: BoxDecoration(
+                child: CustomPaint(
+                  size: const Size(12, 12),
+                  painter: _TrianglePainter(
                     color: Colors.white,
-                    border: Border.all(color: Colors.grey.shade600),
-                    borderRadius: BorderRadius.circular(2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 2,
-                        offset: const Offset(0, 1),
-                      ),
-                    ],
+                    borderColor: Colors.grey.shade600,
                   ),
                 ),
               ),
@@ -786,6 +791,32 @@ class _GanttChartViewState extends State<GanttChartView> {
 
   String _formatDate(DateTime date) {
     return '${date.month}/${date.day}';
+  }
+
+  void _showContextMenu(BuildContext context, Offset position, Task task) {
+    showMenu(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        position.dx,
+        position.dy,
+        position.dx,
+        position.dy,
+      ),
+      items: [
+        const PopupMenuItem(
+          value: 'connect',
+          child: Row(
+            children: [Icon(Icons.link), SizedBox(width: 8), Text('関連付けを編集')],
+          ),
+        ),
+      ],
+    ).then((value) {
+      if (value == 'connect') {
+        setState(() {
+          _dependencySourceId = task.id;
+        });
+      }
+    });
   }
 }
 
@@ -850,5 +881,41 @@ class _ResizeHandleState extends State<_ResizeHandle> {
         ),
       ),
     );
+  }
+}
+
+class _TrianglePainter extends CustomPainter {
+  final Color color;
+  final Color borderColor;
+
+  _TrianglePainter({required this.color, required this.borderColor});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    final borderPaint = Paint()
+      ..color = borderColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+
+    final path = Path();
+    path.moveTo(0, 0);
+    path.lineTo(size.width, 0);
+    path.lineTo(size.width / 2, size.height);
+    path.close();
+
+    // Shadow
+    canvas.drawShadow(path, Colors.black.withOpacity(0.3), 2.0, false);
+
+    canvas.drawPath(path, paint);
+    canvas.drawPath(path, borderPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _TrianglePainter oldDelegate) {
+    return oldDelegate.color != color || oldDelegate.borderColor != borderColor;
   }
 }

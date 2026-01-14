@@ -67,34 +67,45 @@ class DependencyPainter extends CustomPainter {
         final sourceY =
             headerHeight + (sourceIndex * rowHeight) + (rowHeight / 2);
 
-        final targetStartX = _getX(
-          targetTask.startDate.difference(startDate).inDays,
-        );
+        final targetStartX =
+            _getX(targetTask.startDate.difference(startDate).inDays) - 6.0;
         final targetY =
             headerHeight + (targetIndex * rowHeight) + (rowHeight / 2);
 
         final path = Path();
         path.moveTo(sourceEndX, sourceY);
 
-        // Bezier Curve
-        final controlPoint1 = Offset(sourceEndX + 20, sourceY);
-        final controlPoint2 = Offset(targetStartX - 20, targetY);
+        const double xOffset = 20.0;
 
-        // If source is to the right of target, curve needs to go around or be steeper
-        if (sourceEndX > targetStartX) {
-          // Complex curve or simple S-curve?
-          // For simplicity, S-curve is usually fine, but might look weird if overlapping.
-          // Let's use simple cubicTo for now.
+        if (sourceEndX < targetStartX - xOffset) {
+          // Standard case: Source is far enough to the left
+          // 1. Right to (targetStartX - 10) ? Or midpoint?
+          // Let's go to (targetStartX - 20) to make the final approach horizontal
+          final midX = targetStartX - xOffset;
+          path.lineTo(midX, sourceY);
+          path.lineTo(midX, targetY);
+          path.lineTo(targetStartX, targetY);
+        } else {
+          // Overlap case: Source ends after Target starts (or too close)
+          // Need to go around
+          // 1. Go Right from Source
+          final r1 = sourceEndX + 10.0;
+          path.lineTo(r1, sourceY);
+
+          // 2. Go Vertical to Mid Y
+          final midY = (sourceY + targetY) / 2;
+          path.lineTo(r1, midY);
+
+          // 3. Go Left to Target approach X
+          final l1 = targetStartX - xOffset;
+          path.lineTo(l1, midY);
+
+          // 4. Go Vertical to Target Y
+          path.lineTo(l1, targetY);
+
+          // 5. Go Right to Target
+          path.lineTo(targetStartX, targetY);
         }
-
-        path.cubicTo(
-          controlPoint1.dx,
-          controlPoint1.dy,
-          controlPoint2.dx,
-          controlPoint2.dy,
-          targetStartX,
-          targetY,
-        );
 
         canvas.drawPath(path, paint);
 
