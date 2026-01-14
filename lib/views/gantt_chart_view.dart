@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/gestures.dart';
 import 'package:provider/provider.dart';
 import '../models/task_model.dart';
 import '../providers/task_provider.dart';
+import 'package:linked_scroll_controller/linked_scroll_controller.dart';
 import 'gantt_grid_painter.dart';
 import 'dependency_painter.dart';
 
@@ -14,18 +17,33 @@ class GanttChartView extends StatefulWidget {
 }
 
 class _GanttChartViewState extends State<GanttChartView> {
-  final ScrollController _horizontalScrollController = ScrollController();
-  final ScrollController _verticalScrollController = ScrollController();
-  final TransformationController _transformationController =
-      TransformationController();
+  late LinkedScrollControllerGroup _verticalControllers;
+  late ScrollController _taskNameScrollController;
+  late ScrollController _gridVerticalScrollController;
+
+  late LinkedScrollControllerGroup _horizontalControllers;
+  late ScrollController _dateHeaderScrollController;
+  late ScrollController _gridHorizontalScrollController;
 
   static const double taskRowHeight = 40.0;
   static const double taskLabelWidth = 180.0;
   static const double headerHeight = 40.0;
 
   double _dayWidth = 20.0;
-  bool _isCompact = false;
-  bool _canPanChart = true;
+  double _baseDayWidth = 20.0;
+  bool _isCompact = false; // "標準表示"状態かどうか（アイコンの意味と逆にならないように注意）
+
+  @override
+  void initState() {
+    super.initState();
+    _verticalControllers = LinkedScrollControllerGroup();
+    _taskNameScrollController = _verticalControllers.addAndGet();
+    _gridVerticalScrollController = _verticalControllers.addAndGet();
+
+    _horizontalControllers = LinkedScrollControllerGroup();
+    _dateHeaderScrollController = _horizontalControllers.addAndGet();
+    _gridHorizontalScrollController = _horizontalControllers.addAndGet();
+  }
 
   void _toggleViewMode() {
     setState(() {
@@ -36,9 +54,10 @@ class _GanttChartViewState extends State<GanttChartView> {
 
   @override
   void dispose() {
-    _horizontalScrollController.dispose();
-    _verticalScrollController.dispose();
-    _transformationController.dispose();
+    _taskNameScrollController.dispose();
+    _gridVerticalScrollController.dispose();
+    _dateHeaderScrollController.dispose();
+    _gridHorizontalScrollController.dispose();
     super.dispose();
   }
 
@@ -62,94 +81,113 @@ class _GanttChartViewState extends State<GanttChartView> {
           children: [
             _buildHeader(),
             Expanded(
-              child: InteractiveViewer(
-                transformationController: _transformationController,
-                panEnabled: _canPanChart,
-                scaleEnabled: _canPanChart,
-                minScale: 0.1,
-                maxScale: 5.0,
-                boundaryMargin: const EdgeInsets.all(20.0),
-                constrained: true,
-                child: Row(
-                  children: [
-                    _buildTaskNameColumn(
-                      visibleTasks,
-                      taskProvider,
-                      startDate,
-                      totalDays,
-                    ),
-                    Expanded(
-                      child: Stack(
-                        children: [
-                          Scrollbar(
-                            controller: _horizontalScrollController,
-                            thumbVisibility: true,
-                            notificationPredicate: (notification) =>
-                                notification.metrics.axis == Axis.horizontal,
-                            child: SingleChildScrollView(
+              child: Row(
+                children: [
+                  // 左側: タスク名列 (固定)
+                  _buildTaskNameColumn(visibleTasks, taskProvider),
+                  // 右側: ガントチャート (ズーム・スクロール可能)
+                  Expanded(
+                    child: Listener(
+                      onPointerSignal: (event) {
+                        if (event is PointerScrollEvent) {
+                          final keys =
+                              HardwareKeyboard.instance.logicalKeysPressed;
+                          if (keys.contains(LogicalKeyboardKey.controlLeft) ||
+                              keys.contains(LogicalKeyboardKey.controlRight)) {
+                            final dy = event.scrollDelta.dy;
+                            setState(() {
+                              if (dy < 0) {
+                                // Zoom In
+                                _dayWidth = (_dayWidth * 1.1).clamp(5.0, 100.0);
+                              } else if (dy > 0) {
+                                // Zoom Out
+                                _dayWidth = (_dayWidth * 0.9).clamp(5.0, 100.0);
+                              }
+                            });
+                          }
+                        }
+                      },
+                      onPointerPanZoomStart: (event) {
+                        _baseDayWidth = _dayWidth;
+                      },
+                      onPointerPanZoomUpdate: (event) {
+                        setState(() {
+                          _dayWidth = (_baseDayWidth * event.scale).clamp(
+                            5.0,
+                            100.0,
+                          );
+                        });
+                      },
+                      child: GestureDetector(
+                        onScaleStart: (details) {
+                          _baseDayWidth = _dayWidth;
+                        },
+                        onScaleUpdate: (details) {
+                          setState(() {
+                            _dayWidth = (_baseDayWidth * details.scale).clamp(
+                              5.0,
+                              100.0,
+                            );
+                          });
+                        },
+                        child: Column(
+                          children: [
+                            // 上部: 日付ヘッダー (横スクロールのみ)
+                            SingleChildScrollView(
+                              controller: _dateHeaderScrollController,
                               scrollDirection: Axis.horizontal,
-                              controller: _horizontalScrollController,
+                              physics: const ClampingScrollPhysics(), // バウンス抑制
                               child: SizedBox(
                                 width: totalDays * _dayWidth,
-                                child: Column(
-                                  children: [
-                                    _buildDateHeader(startDate, totalDays),
-                                    Expanded(
-                                      child: Stack(
-                                        children: [
-                                          Scrollbar(
-                                            controller:
-                                                _verticalScrollController,
-                                            thumbVisibility: true,
-                                            notificationPredicate:
-                                                (notification) =>
-                                                    notification.metrics.axis ==
-                                                    Axis.vertical,
-                                            child: SingleChildScrollView(
-                                              controller:
-                                                  _verticalScrollController,
-                                              child: Stack(
-                                                children: [
-                                                  // 依存関係の矢印レイヤー
-                                                  CustomPaint(
-                                                    size: Size(
-                                                      totalDays * _dayWidth,
-                                                      visibleTasks.length *
-                                                          taskRowHeight,
-                                                    ),
-                                                    painter: DependencyPainter(
-                                                      visibleTasks:
-                                                          visibleTasks,
-                                                      startDate: startDate,
-                                                      dayWidth: _dayWidth,
-                                                      rowHeight: taskRowHeight,
-                                                      headerHeight: 0,
-                                                    ),
-                                                  ),
-                                                  // タスクリスト
-                                                  _buildGanttChartList(
-                                                    visibleTasks,
-                                                    startDate,
-                                                    totalDays,
-                                                    taskProvider,
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
+                                child: _buildDateHeader(startDate, totalDays),
+                              ),
+                            ),
+                            // メイン: チャートグリッド (縦横スクロール可能)
+                            Expanded(
+                              child: SingleChildScrollView(
+                                controller: _gridHorizontalScrollController,
+                                scrollDirection: Axis.horizontal,
+                                physics: const ClampingScrollPhysics(),
+                                child: SizedBox(
+                                  width: totalDays * _dayWidth,
+                                  child: SingleChildScrollView(
+                                    controller: _gridVerticalScrollController,
+                                    physics: const ClampingScrollPhysics(),
+                                    child: Stack(
+                                      children: [
+                                        // 依存関係の矢印レイヤー
+                                        CustomPaint(
+                                          size: Size(
+                                            totalDays * _dayWidth,
+                                            visibleTasks.length * taskRowHeight,
                                           ),
-                                        ],
-                                      ),
+                                          painter: DependencyPainter(
+                                            visibleTasks: visibleTasks,
+                                            startDate: startDate,
+                                            dayWidth: _dayWidth,
+                                            rowHeight: taskRowHeight,
+                                            headerHeight: 0,
+                                          ),
+                                        ),
+                                        // タスクリスト
+                                        _buildGanttChartList(
+                                          visibleTasks,
+                                          startDate,
+                                          totalDays,
+                                          taskProvider,
+                                        ),
+                                      ],
                                     ),
-                                  ],
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -205,8 +243,6 @@ class _GanttChartViewState extends State<GanttChartView> {
   Widget _buildTaskNameColumn(
     List<TaskWithLevel> tasks,
     TaskProvider taskProvider,
-    DateTime startDate,
-    int totalDays,
   ) {
     return Container(
       width: taskLabelWidth,
@@ -233,10 +269,10 @@ class _GanttChartViewState extends State<GanttChartView> {
           ),
           Expanded(
             child: Scrollbar(
-              controller: _verticalScrollController,
+              controller: _taskNameScrollController,
               thumbVisibility: true,
               child: ListView.builder(
-                controller: _verticalScrollController,
+                controller: _taskNameScrollController,
                 itemCount: tasks.length,
                 itemBuilder: (context, index) {
                   final taskWithLevel = tasks[index];
@@ -650,56 +686,24 @@ class _GanttChartViewState extends State<GanttChartView> {
             right: -34,
             top: 0,
             bottom: 0,
-            child: Listener(
-              onPointerDown: (_) {
-                setState(() {
-                  _canPanChart = false;
-                });
-              },
-              onPointerUp: (_) {
-                setState(() {
-                  _canPanChart = true;
-                });
-              },
-              onPointerCancel: (_) {
-                setState(() {
-                  _canPanChart = true;
-                });
-              },
-              child: Draggable<String>(
-                data: task.id,
-                onDragEnd: (_) {
-                  setState(() {
-                    _canPanChart = true;
-                  });
-                },
-                onDraggableCanceled: (_, __) {
-                  setState(() {
-                    _canPanChart = true;
-                  });
-                },
-                onDragCompleted: () {
-                  setState(() {
-                    _canPanChart = true;
-                  });
-                },
-                feedback: Material(
-                  color: Colors.transparent,
-                  child: const Icon(
-                    Icons.play_arrow,
-                    size: 24,
-                    color: Colors.blue,
-                  ),
+            child: Draggable<String>(
+              data: task.id,
+              feedback: Material(
+                color: Colors.transparent,
+                child: const Icon(
+                  Icons.play_arrow,
+                  size: 24,
+                  color: Colors.blue,
                 ),
-                child: Container(
-                  width: 30,
-                  alignment: Alignment.center,
-                  color: Colors.transparent,
-                  child: const Icon(
-                    Icons.play_arrow,
-                    size: 20,
-                    color: Colors.grey,
-                  ),
+              ),
+              child: Container(
+                width: 30,
+                alignment: Alignment.center,
+                color: Colors.transparent,
+                child: const Icon(
+                  Icons.play_arrow,
+                  size: 20,
+                  color: Colors.grey,
                 ),
               ),
             ),
@@ -711,9 +715,7 @@ class _GanttChartViewState extends State<GanttChartView> {
             bottom: 12, // 下半分はリサイズハンドル用に空ける
             child: GestureDetector(
               onHorizontalDragUpdate: (details) {
-                final scale = _transformationController.value
-                    .getMaxScaleOnAxis();
-                final delta = details.delta.dx / scale;
+                final delta = details.delta.dx;
                 final newWidth = (width * task.progress) + delta;
                 final newProgress = (newWidth / width).clamp(0.0, 1.0);
                 taskProvider.updateTask(
