@@ -40,12 +40,14 @@ class ResizeHandle extends StatefulWidget {
   final Color color;
   final void Function(int deltaDays) onDrag;
   final double dayWidth;
+  final double width;
 
   const ResizeHandle({
     super.key,
     required this.color,
     required this.onDrag,
     required this.dayWidth,
+    this.width = 40.0,
   });
 
   @override
@@ -74,7 +76,7 @@ class _ResizeHandleState extends State<ResizeHandle> {
           }
         },
         child: Container(
-          width: 20, // Increase hit area
+          width: widget.width, // Increase hit area
           color: Colors.transparent,
           alignment: Alignment.center,
           child: Container(

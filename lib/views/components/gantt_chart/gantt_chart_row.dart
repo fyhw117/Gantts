@@ -72,6 +72,12 @@ class _GanttChartRowState extends State<GanttChartRow> {
     final width = duration * widget.dayWidth;
     final progressHandlePos = width * task.progress;
 
+    // Handle Configuration
+    // 判定範囲の幅 (Hit area width)
+    const double handleWidth = 34.0;
+    // リサイズハンドルの位置調整 (Position offset)
+    const double handleOffset = -17.0;
+
     return Positioned(
       left: left,
       top: 8,
@@ -80,55 +86,56 @@ class _GanttChartRowState extends State<GanttChartRow> {
         clipBehavior: Clip.none,
         children: [
           // タスクバー本体
-          Container(
-            width: width,
-            decoration: BoxDecoration(
-              color: task.color.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(4),
-              border: widget.dependencySourceId == task.id
-                  ? Border.all(color: Colors.red, width: 2)
-                  : null,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: GestureDetector(
-              onTap: () {
-                if (widget.dependencySourceId != null) {
-                  if (widget.dependencySourceId != task.id) {
-                    if (task.dependencies.contains(widget.dependencySourceId)) {
-                      widget.taskProvider.removeDependency(
-                        widget.dependencySourceId!,
-                        task.id,
-                      );
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('関連付けを解除しました')),
-                      );
-                    } else {
-                      widget.taskProvider.addDependency(
-                        widget.dependencySourceId!,
-                        task.id,
-                      );
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('関連付けを追加しました')),
-                      );
-                    }
-                    widget.onDependencySourceIdChanged(null);
+          // タスクバー本体
+          GestureDetector(
+            onTap: () {
+              if (widget.dependencySourceId != null) {
+                if (widget.dependencySourceId != task.id) {
+                  if (task.dependencies.contains(widget.dependencySourceId)) {
+                    widget.taskProvider.removeDependency(
+                      widget.dependencySourceId!,
+                      task.id,
+                    );
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('関連付けを解除しました')),
+                    );
                   } else {
-                    widget.onDependencySourceIdChanged(null);
+                    widget.taskProvider.addDependency(
+                      widget.dependencySourceId!,
+                      task.id,
+                    );
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('関連付けを追加しました')),
+                    );
                   }
+                  widget.onDependencySourceIdChanged(null);
+                } else {
+                  widget.onDependencySourceIdChanged(null);
                 }
-              },
-              onSecondaryTapUp: (details) {
-                _showContextMenu(context, details.globalPosition, task);
-              },
-              onLongPressStart: (details) {
-                _showContextMenu(context, details.globalPosition, task);
-              },
+              }
+            },
+            onSecondaryTapUp: (details) {
+              _showContextMenu(context, details.globalPosition, task);
+            },
+            onLongPressStart: (details) {
+              _showContextMenu(context, details.globalPosition, task);
+            },
+            child: Container(
+              width: width,
+              decoration: BoxDecoration(
+                color: task.color.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(4),
+                border: widget.dependencySourceId == task.id
+                    ? Border.all(color: Colors.red, width: 2)
+                    : null,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
               child: Stack(
                 children: [
                   Container(
@@ -144,7 +151,7 @@ class _GanttChartRowState extends State<GanttChartRow> {
           ),
           // 左リサイズハンドル
           Positioned(
-            left: -10,
+            left: handleOffset,
             top: -6,
             bottom: -6,
             child: ResizeHandle(
@@ -159,11 +166,12 @@ class _GanttChartRowState extends State<GanttChartRow> {
                   task.copyWith(startDate: newStart),
                 );
               },
+              width: handleWidth,
             ),
           ),
           // 右リサイズハンドル
           Positioned(
-            right: -10,
+            right: handleOffset,
             top: -6,
             bottom: -6,
             child: ResizeHandle(
@@ -178,6 +186,7 @@ class _GanttChartRowState extends State<GanttChartRow> {
                   task.copyWith(endDate: newEnd),
                 );
               },
+              width: handleWidth,
             ),
           ),
           // 依存関係レシーバー
