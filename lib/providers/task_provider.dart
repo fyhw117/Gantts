@@ -15,10 +15,19 @@ class TaskProvider extends ChangeNotifier {
   String? _userId;
   StreamSubscription? _authSubscription;
   StreamSubscription? _projectsSubscription;
+  bool _shouldShowWelcomeMessage = false;
 
   TaskProvider() {
     _initialize();
   }
+
+  void setWelcomeMessage(bool value) {
+    _shouldShowWelcomeMessage = value;
+    if (value) notifyListeners();
+    // If setting to false, we usually do it after showing, so notify matches UI flow
+  }
+
+  bool get shouldShowWelcomeMessage => _shouldShowWelcomeMessage;
 
   void _initialize() {
     _authSubscription = _authRepository.authStateChanges.listen((user) {
@@ -87,6 +96,16 @@ class TaskProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error fetching tasks: $e');
     }
+  }
+
+  Future<void> signOut() async {
+    await _authRepository.signOut();
+    // _initialize listener handles state reset
+  }
+
+  Future<void> deleteAccount() async {
+    await _authRepository.deleteAccount();
+    // Auth state change listener will handle cleanup (user becomes null)
   }
 
   @override

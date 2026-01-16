@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:uuid/uuid.dart';
 
 /// タスクのモデルクラス
 class Task {
@@ -26,6 +27,30 @@ class Task {
     this.children = const [],
     this.isExpanded = false,
   });
+
+  /// 新しいタスクを作成するファクトリ
+  factory Task.create({
+    required String name,
+    required DateTime startDate,
+    required DateTime endDate,
+    String description = '',
+    double progress = 0.0,
+    Color color = Colors.blue,
+    List<String> dependencies = const [],
+  }) {
+    return Task(
+      id: const Uuid().v4(),
+      name: name,
+      description: description,
+      startDate: startDate,
+      endDate: endDate,
+      progress: progress,
+      color: color,
+      dependencies: dependencies,
+      children: [],
+      isExpanded: true,
+    );
+  }
 
   /// 期間（日数）を計算
   int get durationInDays {

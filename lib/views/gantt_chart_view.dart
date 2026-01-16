@@ -9,6 +9,7 @@ import 'components/gantt_chart/gantt_chart_header.dart';
 import 'components/gantt_chart/gantt_chart_row.dart';
 import 'components/gantt_chart/gantt_task_column.dart';
 import 'dependency_painter.dart';
+import 'project_list_view.dart';
 
 /// ガントチャートビュー
 class GanttChartView extends StatefulWidget {
@@ -68,12 +69,15 @@ class _GanttChartViewState extends State<GanttChartView> {
   Widget build(BuildContext context) {
     return Consumer<TaskProvider>(
       builder: (context, taskProvider, child) {
+        if (taskProvider.projects.isEmpty) {
+          return _buildNoProjectState(context);
+        }
+
         final visibleTasks = taskProvider.getVisibleTasksWithLevel();
 
         if (visibleTasks.isEmpty) {
           return _buildEmptyState();
         }
-
         final allTasks = visibleTasks.map((t) => t.task).toList();
         final dateRange = _getDateRange(allTasks);
         final startDate = dateRange['start']!;
@@ -128,81 +132,67 @@ class _GanttChartViewState extends State<GanttChartView> {
                           );
                         });
                       },
-                      child: GestureDetector(
-                        onScaleStart: (details) {
-                          _baseDayWidth = _dayWidth;
-                        },
-                        onScaleUpdate: (details) {
-                          setState(() {
-                            _dayWidth = (_baseDayWidth * details.scale).clamp(
-                              5.0,
-                              100.0,
-                            );
-                          });
-                        },
-                        child: Column(
-                          children: [
-                            // 上部: 日付ヘッダー (横スクロールのみ)
-                            SingleChildScrollView(
-                              controller: _dateHeaderScrollController,
-                              scrollDirection: Axis.horizontal,
-                              physics: const ClampingScrollPhysics(), // バウンス抑制
-                              child: SizedBox(
-                                width: totalDays * _dayWidth,
-                                child: GanttChartHeader(
-                                  startDate: startDate,
-                                  totalDays: totalDays,
-                                  dayWidth: _dayWidth,
-                                  isCompact: _isCompact,
-                                  headerHeight: headerHeight,
-                                ),
+                      child: Column(
+                        children: [
+                          // 上部: 日付ヘッダー (横スクロールのみ)
+                          SingleChildScrollView(
+                            controller: _dateHeaderScrollController,
+                            scrollDirection: Axis.horizontal,
+                            physics: const ClampingScrollPhysics(), // バウンス抑制
+                            child: SizedBox(
+                              width: totalDays * _dayWidth,
+                              child: GanttChartHeader(
+                                startDate: startDate,
+                                totalDays: totalDays,
+                                dayWidth: _dayWidth,
+                                isCompact: _isCompact,
+                                headerHeight: headerHeight,
                               ),
                             ),
-                            // メイン: チャートグリッド (縦横スクロール可能)
-                            Expanded(
-                              child: SingleChildScrollView(
-                                controller: _gridHorizontalScrollController,
-                                scrollDirection: Axis.horizontal,
-                                physics: const ClampingScrollPhysics(),
-                                child: SizedBox(
-                                  width: totalDays * _dayWidth,
-                                  child: SingleChildScrollView(
-                                    controller: _gridVerticalScrollController,
-                                    physics: const ClampingScrollPhysics(),
-                                    child: Stack(
-                                      children: [
-                                        // タスクリスト
-                                        _buildGanttChartList(
-                                          visibleTasks,
-                                          startDate,
-                                          totalDays,
-                                          taskProvider,
-                                        ),
-                                        // 依存関係の矢印レイヤー
-                                        IgnorePointer(
-                                          child: CustomPaint(
-                                            size: Size(
-                                              totalDays * _dayWidth,
-                                              visibleTasks.length *
-                                                  taskRowHeight,
-                                            ),
-                                            painter: DependencyPainter(
-                                              visibleTasks: visibleTasks,
-                                              startDate: startDate,
-                                              dayWidth: _dayWidth,
-                                              rowHeight: taskRowHeight,
-                                              headerHeight: 0,
-                                            ),
+                          ),
+                          // メイン: チャートグリッド (縦横スクロール可能)
+                          Expanded(
+                            child: SingleChildScrollView(
+                              controller: _gridHorizontalScrollController,
+                              scrollDirection: Axis.horizontal,
+                              physics: const ClampingScrollPhysics(),
+                              child: SizedBox(
+                                width: totalDays * _dayWidth,
+                                child: SingleChildScrollView(
+                                  controller: _gridVerticalScrollController,
+                                  physics: const ClampingScrollPhysics(),
+                                  child: Stack(
+                                    children: [
+                                      // タスクリスト
+                                      _buildGanttChartList(
+                                        visibleTasks,
+                                        startDate,
+                                        totalDays,
+                                        taskProvider,
+                                      ),
+                                      // 依存関係の矢印レイヤー
+                                      IgnorePointer(
+                                        child: CustomPaint(
+                                          size: Size(
+                                            totalDays * _dayWidth,
+                                            visibleTasks.length * taskRowHeight,
+                                          ),
+                                          painter: DependencyPainter(
+                                            visibleTasks: visibleTasks,
+                                            startDate: startDate,
+                                            dayWidth: _dayWidth,
+                                            rowHeight: taskRowHeight,
+                                            headerHeight: 0,
                                           ),
                                         ),
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -212,6 +202,34 @@ class _GanttChartViewState extends State<GanttChartView> {
           ],
         );
       },
+    );
+  }
+
+  Widget _buildNoProjectState(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.folder_off, size: 80, color: Colors.grey),
+          const SizedBox(height: 16),
+          const Text(
+            'プロジェクトがありません',
+            style: TextStyle(fontSize: 18, color: Colors.grey),
+          ),
+          const SizedBox(height: 8),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ProjectListView(),
+                ),
+              );
+            },
+            child: const Text('プロジェクトを作成する'),
+          ),
+        ],
+      ),
     );
   }
 

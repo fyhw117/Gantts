@@ -136,11 +136,51 @@ class ProjectListView extends StatelessWidget {
             ),
             TextField(
               controller: descriptionController,
-              decoration: const InputDecoration(labelText: '説明'),
+              decoration: const InputDecoration(labelText: 'メモ'),
             ),
           ],
         ),
         actions: [
+          if (isEditing)
+            TextButton(
+              onPressed: () async {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('プロジェクト削除'),
+                    content: Text(
+                      '"${project.name}" を削除してもよろしいですか？\n含まれるすべてのタスクも削除されます。',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        child: const Text('キャンセル'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.red,
+                        ),
+                        child: const Text('削除'),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirmed == true && context.mounted) {
+                  Provider.of<TaskProvider>(
+                    context,
+                    listen: false,
+                  ).deleteProject(project.id);
+                  Navigator.pop(context); // Close edit dialog
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('${project.name} を削除しました')),
+                  );
+                }
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('削除'),
+            ),
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('キャンセル'),

@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../models/task_model.dart';
 import '../providers/task_provider.dart';
 
+import 'project_list_view.dart';
+
 /// WBS（作業分解構成図）ビュー
 class WBSView extends StatelessWidget {
   const WBSView({super.key});
@@ -15,7 +17,9 @@ class WBSView extends StatelessWidget {
           children: [
             _buildHeader(context, taskProvider),
             Expanded(
-              child: taskProvider.rootTasks.isEmpty
+              child: taskProvider.projects.isEmpty
+                  ? _buildNoProjectState(context)
+                  : taskProvider.rootTasks.isEmpty
                   ? _buildEmptyState()
                   : ReorderableListView.builder(
                       buildDefaultDragHandles: false,
@@ -42,6 +46,21 @@ class WBSView extends StatelessWidget {
     );
   }
 
+  // Header code remains roughly same, but maybe disable Add button if no project?
+  // Current header:
+  /*
+  Widget _buildHeader(BuildContext context, TaskProvider taskProvider) {
+    return Container(
+      ...
+          ElevatedButton.icon(
+            onPressed: () => _showAddTaskDialog(context, taskProvider, null),
+  */
+  // Ideally disable add task if no project. But if projects.isEmpty, we show _buildNoProjectState which takes up the Expanded space.
+  // The header is still visible. If I click "Add Task", it might fail or add to null?
+  // _showAddTaskDialog uses taskProvider.addTask.
+  // addTask uses currentProject.id. If currentProject is null, it might throw or error.
+  // So I should disable the button or hide it if no project.
+
   Widget _buildHeader(BuildContext context, TaskProvider taskProvider) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -56,10 +75,39 @@ class WBSView extends StatelessWidget {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const Spacer(),
-          ElevatedButton.icon(
-            onPressed: () => _showAddTaskDialog(context, taskProvider, null),
-            icon: const Icon(Icons.add),
-            label: const Text('タスク追加'),
+          if (taskProvider.projects.isNotEmpty)
+            ElevatedButton.icon(
+              onPressed: () => _showAddTaskDialog(context, taskProvider, null),
+              icon: const Icon(Icons.add),
+              label: const Text('タスク追加'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoProjectState(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.folder_off, size: 80, color: Colors.grey),
+          const SizedBox(height: 16),
+          const Text(
+            'プロジェクトがありません',
+            style: TextStyle(fontSize: 18, color: Colors.grey),
+          ),
+          const SizedBox(height: 8),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ProjectListView(),
+                ),
+              );
+            },
+            child: const Text('プロジェクトを作成する'),
           ),
         ],
       ),

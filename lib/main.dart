@@ -68,6 +68,19 @@ class _MyHomePageState extends State<MyHomePage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final taskProvider = context.read<TaskProvider>();
+      if (taskProvider.shouldShowWelcomeMessage) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('確認メールを送信しました。メールボックスを確認してください。'),
+            duration: Duration(seconds: 5),
+          ),
+        );
+        taskProvider.setWelcomeMessage(false);
+      }
+    });
   }
 
   @override
@@ -124,50 +137,137 @@ class _MyHomePageState extends State<MyHomePage>
             ),
           ),
           drawer: Drawer(
-            child: ListView(
-              padding: EdgeInsets.zero,
+            child: Column(
               children: [
-                DrawerHeader(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  child: const Text(
-                    'GanttChart',
-                    style: TextStyle(color: Colors.white, fontSize: 24),
-                  ),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.list),
-                  title: const Text('プロジェクト一覧'),
-                  onTap: () {
-                    Navigator.pop(context); // Close drawer
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ProjectListView(),
+                Expanded(
+                  child: ListView(
+                    padding: EdgeInsets.zero,
+                    children: [
+                      DrawerHeader(
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        child: const Text(
+                          'GanttChart',
+                          style: TextStyle(color: Colors.white, fontSize: 24),
+                        ),
                       ),
-                    );
-                  },
+                      ListTile(
+                        leading: const Icon(Icons.list),
+                        title: const Text('プロジェクト一覧'),
+                        onTap: () {
+                          Navigator.pop(context); // Close drawer
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const ProjectListView(),
+                            ),
+                          );
+                        },
+                      ),
+                      const Divider(),
+                      const Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Text(
+                          'プロジェクト切り替え',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      ...taskProvider.projects.map((project) {
+                        return ListTile(
+                          leading: const Icon(Icons.folder),
+                          title: Text(project.name),
+                          selected: project.id == taskProvider.currentProjectId,
+                          onTap: () {
+                            taskProvider.selectProject(project.id);
+                            Navigator.pop(context);
+                          },
+                        );
+                      }),
+                    ],
+                  ),
                 ),
                 const Divider(),
-                const Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Text(
-                    'プロジェクト切り替え',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
+                ListTile(
+                  leading: const Icon(Icons.logout),
+                  title: const Text('ログアウト'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    taskProvider.signOut();
+                  },
                 ),
-                ...taskProvider.projects.map((project) {
-                  return ListTile(
-                    leading: const Icon(Icons.folder),
-                    title: Text(project.name),
-                    selected: project.id == taskProvider.currentProjectId,
-                    onTap: () {
-                      taskProvider.selectProject(project.id);
-                      Navigator.pop(context);
-                    },
-                  );
-                }),
+                ListTile(
+                  leading: const Icon(Icons.delete_forever, color: Colors.red),
+                  title: const Text(
+                    'アカウント削除',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (context) {
+                        return AlertDialog(
+                          title: const Text('アカウント削除'),
+                          content: const Text(
+                            '本当にアカウントを削除しますか？\n'
+                            'この操作は取り消せません。\n'
+                            '保存されているすべてのデータが失われます。',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('キャンセル'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.red,
+                              ),
+                              child: const Text('削除する'),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+
+                    if (confirmed == true) {
+                      try {
+                        await taskProvider.deleteAccount();
+                      } on FirebaseAuthException catch (e) {
+                        if (context.mounted) {
+                          if (e.code == 'requires-recent-login') {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'セキュリティのため、再ログインが必要です。一度ログアウトして再度ログインしてからお試しください。',
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('エラーが発生しました: ${e.message}'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('エラーが発生しました: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    }
+                  },
+                ),
+                const SizedBox(height: 24),
               ],
             ),
           ),

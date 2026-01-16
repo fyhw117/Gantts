@@ -1,6 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 import '../repositories/auth_repository.dart';
+import '../repositories/firestore_repository.dart';
+import '../providers/task_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,8 +17,10 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _authRepository = AuthRepository();
+  final _firestoreRepository = FirestoreRepository();
   String _errorMessage = '';
   bool _isLoading = false;
+  bool _isPasswordVisible = false;
 
   Future<void> _signIn() async {
     setState(() {
@@ -29,7 +35,7 @@ class _LoginScreenState extends State<LoginScreen> {
       // Main navigation handled by StreamBuilder in main.dart
     } on FirebaseAuthException catch (e) {
       setState(() {
-        _errorMessage = e.message ?? 'ログインに失敗しました';
+        _errorMessage = _getErrorMessage(e);
       });
     } catch (e) {
       setState(() {
@@ -37,7 +43,7 @@ class _LoginScreenState extends State<LoginScreen> {
       });
     } finally {
       setState(() {
-        _isLoading = false;
+        if (mounted) _isLoading = false;
       });
     }
   }
@@ -52,9 +58,32 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text,
         password: _passwordController.text,
       );
+
+      // ユーザー登録成功にサンプルデータを作成
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        // Create default data (Critical)
+        await _firestoreRepository.createDefaultProject(user.uid);
+
+        // Send verification email (Non-critical)
+        if (!user.emailVerified) {
+          try {
+            await user.sendEmailVerification().timeout(
+              const Duration(seconds: 5),
+            );
+            // Show welcome message only if email sent successfully
+            if (mounted) {
+              context.read<TaskProvider>().setWelcomeMessage(true);
+            }
+          } catch (e) {
+            debugPrint('Failed to send verification email: $e');
+            // Proceed anyway
+          }
+        }
+      }
     } on FirebaseAuthException catch (e) {
       setState(() {
-        _errorMessage = e.message ?? '登録に失敗しました';
+        _errorMessage = _getErrorMessage(e);
       });
     } catch (e) {
       setState(() {
@@ -62,8 +91,31 @@ class _LoginScreenState extends State<LoginScreen> {
       });
     } finally {
       setState(() {
-        _isLoading = false;
+        if (mounted) _isLoading = false;
       });
+    }
+  }
+
+  String _getErrorMessage(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'invalid-email':
+        return 'メールアドレスの形式が正しくありません。';
+      case 'user-disabled':
+        return 'このユーザーは無効化されています。';
+      case 'user-not-found':
+        return 'ユーザーが見つかりません。';
+      case 'wrong-password':
+        return 'パスワードが間違っています。';
+      case 'email-already-in-use':
+        return 'このメールアドレスは既に使用されています。';
+      case 'operation-not-allowed':
+        return 'この操作は許可されていません。';
+      case 'weak-password':
+        return 'パスワードが弱すぎます。6文字以上で設定してください。';
+      case 'invalid-credential':
+        return '認証情報が無効です。再度お試しください。';
+      default:
+        return 'エラーが発生しました: ${e.message}';
     }
   }
 
@@ -88,8 +140,30 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 16),
                   TextField(
                     controller: _passwordController,
-                    decoration: const InputDecoration(labelText: 'パスワード'),
-                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText: 'パスワード',
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _isPasswordVisible
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _isPasswordVisible = !_isPasswordVisible;
+                          });
+                        },
+                      ),
+                    ),
+                    obscureText: !_isPasswordVisible,
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: _showPasswordResetDialog,
+                      child: const Text('パスワードを忘れた場合'),
+                    ),
                   ),
                   const SizedBox(height: 24),
                   if (_errorMessage.isNotEmpty) ...[
@@ -127,6 +201,72 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Future<void> _showPasswordResetDialog() async {
+    final resetEmailController = TextEditingController(
+      text: _emailController.text,
+    );
+    return showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('パスワード再設定'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('登録したメールアドレスを入力してください。\n再設定用のリンクを送信します。'),
+              const SizedBox(height: 16),
+              TextField(
+                controller: resetEmailController,
+                decoration: const InputDecoration(labelText: 'メールアドレス'),
+                keyboardType: TextInputType.emailAddress,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('キャンセル'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                try {
+                  await _authRepository.sendPasswordResetEmail(
+                    resetEmailController.text.trim(),
+                  );
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('パスワード再設定メールを送信しました。')),
+                    );
+                  }
+                } on FirebaseAuthException catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(_getErrorMessage(e)),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('エラーが発生しました: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('送信'),
+            ),
+          ],
+        );
+      },
     );
   }
 }
