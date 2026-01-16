@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// タスクのモデルクラス
 class Task {
@@ -80,5 +81,41 @@ class Task {
       result.addAll(child.flatten());
     }
     return result;
+  }
+
+  /// Firestore用のMapに変換
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'name': name,
+      'description': description,
+      'startDate': Timestamp.fromDate(startDate),
+      'endDate': Timestamp.fromDate(endDate),
+      'progress': progress,
+      'color': color.value,
+      'dependencies': dependencies,
+      'children': children.map((child) => child.toMap()).toList(),
+      'isExpanded': isExpanded,
+    };
+  }
+
+  /// FirestoreのMapからTaskを生成
+  factory Task.fromMap(Map<String, dynamic> map) {
+    return Task(
+      id: map['id'] ?? '',
+      name: map['name'] ?? '',
+      description: map['description'] ?? '',
+      startDate: (map['startDate'] as Timestamp).toDate(),
+      endDate: (map['endDate'] as Timestamp).toDate(),
+      progress: (map['progress'] as num?)?.toDouble() ?? 0.0,
+      color: Color(map['color'] ?? 0xFF42A5F5), // Default Blue
+      dependencies: List<String>.from(map['dependencies'] ?? []),
+      children:
+          (map['children'] as List<dynamic>?)
+              ?.map((childMap) => Task.fromMap(childMap))
+              .toList() ??
+          [],
+      isExpanded: map['isExpanded'] ?? false,
+    );
   }
 }

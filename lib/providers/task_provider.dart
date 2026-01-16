@@ -1,11 +1,100 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/task_model.dart';
 import '../models/project_model.dart';
+import '../repositories/auth_repository.dart';
+import '../repositories/firestore_repository.dart';
 
 /// タスクデータを管理するProvider
 class TaskProvider extends ChangeNotifier {
+  final AuthRepository _authRepository = AuthRepository();
+  final FirestoreRepository _firestoreRepository = FirestoreRepository();
+
   List<Project> _projects = [];
   String? _currentProjectId;
+  String? _userId;
+  StreamSubscription? _authSubscription;
+  StreamSubscription? _projectsSubscription;
+
+  TaskProvider() {
+    _initialize();
+  }
+
+  void _initialize() {
+    _authSubscription = _authRepository.authStateChanges.listen((user) {
+      _userId = user?.uid;
+      _projectsSubscription?.cancel();
+      if (_userId != null) {
+        _subscribeToProjects();
+      } else {
+        _projects = [];
+        _currentProjectId = null;
+        notifyListeners();
+      }
+    });
+  }
+
+  void _subscribeToProjects() {
+    if (_userId == null) return;
+    _projectsSubscription = _firestoreRepository
+        .getProjectsStream(_userId!)
+        .listen((projects) {
+          // 既存のタスクデータを保持するためのマップを作成
+          final Map<String, List<Task>> existingTasks = {};
+          for (var p in _projects) {
+            existingTasks[p.id] = p.tasks;
+          }
+
+          _projects = projects;
+
+          // プロジェクトIDが同じならタスクを復元（再フェッチまでのつなぎ）
+          for (var i = 0; i < _projects.length; i++) {
+            if (existingTasks.containsKey(_projects[i].id)) {
+              _projects[i] = _projects[i].copyWith(
+                tasks: existingTasks[_projects[i].id],
+              );
+            }
+          }
+
+          if (_currentProjectId == null && _projects.isNotEmpty) {
+            selectProject(_projects.first.id);
+          } else if (_currentProjectId != null &&
+              !_projects.any((p) => p.id == _currentProjectId)) {
+            // 現在のプロジェクトが削除された場合
+            _currentProjectId = _projects.isNotEmpty
+                ? _projects.first.id
+                : null;
+            if (_currentProjectId != null) {
+              _fetchTasksForCurrentProject();
+            }
+          }
+          notifyListeners();
+        });
+  }
+
+  Future<void> _fetchTasksForCurrentProject() async {
+    if (_userId == null || _currentProjectId == null) return;
+
+    final projectId = _currentProjectId!;
+    try {
+      final tasks = await _firestoreRepository.fetchTasks(_userId!, projectId);
+
+      final index = _projects.indexWhere((p) => p.id == projectId);
+      if (index != -1) {
+        _projects[index] = _projects[index].copyWith(tasks: tasks);
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error fetching tasks: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    _projectsSubscription?.cancel();
+    super.dispose();
+  }
 
   List<Project> get projects => _projects;
   String? get currentProjectId => _currentProjectId;
@@ -24,11 +113,15 @@ class TaskProvider extends ChangeNotifier {
   }
 
   /// プロジェクトを追加
-  void addProject(String name, String description) {
+  Future<void> addProject(String name, String description) async {
+    if (_userId == null) return;
     final newProject = Project.create(name: name, description: description);
+    // Optimistic update
     _projects.add(newProject);
     _currentProjectId = newProject.id;
     notifyListeners();
+
+    await _firestoreRepository.addProject(_userId!, newProject);
   }
 
   /// プロジェクトを選択
@@ -36,28 +129,44 @@ class TaskProvider extends ChangeNotifier {
     if (_projects.any((p) => p.id == projectId)) {
       _currentProjectId = projectId;
       notifyListeners();
+      _fetchTasksForCurrentProject();
     }
   }
 
   /// プロジェクト情報を更新
-  void updateProject(String projectId, String name, String description) {
+  Future<void> updateProject(
+    String projectId,
+    String name,
+    String description,
+  ) async {
+    if (_userId == null) return;
     final index = _projects.indexWhere((p) => p.id == projectId);
     if (index != -1) {
-      _projects[index] = _projects[index].copyWith(
+      final updatedProject = _projects[index].copyWith(
         name: name,
         description: description,
       );
+      _projects[index] = updatedProject;
       notifyListeners();
+
+      await _firestoreRepository.updateProject(_userId!, updatedProject);
     }
   }
 
   /// プロジェクトを削除
-  void deleteProject(String projectId) {
+  Future<void> deleteProject(String projectId) async {
+    if (_userId == null) return;
+
     _projects.removeWhere((p) => p.id == projectId);
     if (_currentProjectId == projectId) {
       _currentProjectId = _projects.isNotEmpty ? _projects.first.id : null;
+      if (_currentProjectId != null) {
+        _fetchTasksForCurrentProject();
+      }
     }
     notifyListeners();
+
+    await _firestoreRepository.deleteProject(_userId!, projectId);
   }
 
   /// すべてのタスクをフラットなリストで取得（現在のプロジェクト）
@@ -91,86 +200,184 @@ class TaskProvider extends ChangeNotifier {
     }
   }
 
+  /// Task Saving Logic
+  Future<void> _saveRootTask(Task rootTask) async {
+    if (_userId == null || _currentProjectId == null) return;
+    await _firestoreRepository.updateTask(
+      _userId!,
+      _currentProjectId!,
+      rootTask,
+    );
+  }
+
+  Future<void> _addRootTaskToFirestore(Task rootTask) async {
+    if (_userId == null || _currentProjectId == null) return;
+    await _firestoreRepository.addTask(_userId!, _currentProjectId!, rootTask);
+  }
+
+  Future<void> _deleteRootTaskFromFirestore(Task rootTask) async {
+    if (_userId == null || _currentProjectId == null) return;
+    await _firestoreRepository.deleteTask(
+      _userId!,
+      _currentProjectId!,
+      rootTask.id,
+    );
+  }
+
   /// タスクを追加
   void addTask(Task task, {Task? parent}) {
     final project = currentProject;
-    if (project == null) return;
+    if (project == null || _userId == null) return;
 
     if (parent == null) {
       project.tasks.add(task);
+      notifyListeners();
+      _addRootTaskToFirestore(task);
     } else {
-      // 親タスクを見つけて子として追加
       _addChildTask(project.tasks, parent.id, task);
     }
-    notifyListeners();
   }
 
   void _addChildTask(List<Task> tasks, String parentId, Task task) {
-    for (var i = 0; i < tasks.length; i++) {
-      if (tasks[i].id == parentId) {
-        tasks[i] = tasks[i].copyWith(children: [...tasks[i].children, task]);
-        return;
+    if (_userId == null || _currentProjectId == null) return;
+
+    final rootIndex = tasks.indexWhere(
+      (r) => r.id == parentId || r.flatten().any((t) => t.id == parentId),
+    );
+    if (rootIndex != -1) {
+      var root = tasks[rootIndex];
+      final newRoot = _insertChildIntoTask(root, parentId, task);
+      if (newRoot != null) {
+        tasks[rootIndex] = newRoot;
+        notifyListeners();
+        _saveRootTask(newRoot);
       }
-      _addChildTaskRecursive(tasks[i], parentId, task);
     }
   }
 
-  void _addChildTaskRecursive(Task current, String parentId, Task newTask) {
-    for (var i = 0; i < current.children.length; i++) {
-      if (current.children[i].id == parentId) {
-        current.children[i] = current.children[i].copyWith(
-          children: [...current.children[i].children, newTask],
-        );
-        return;
-      }
-      _addChildTaskRecursive(current.children[i], parentId, newTask);
+  Task? _insertChildIntoTask(Task current, String parentId, Task newTask) {
+    if (current.id == parentId) {
+      return current.copyWith(children: [...current.children, newTask]);
     }
+    List<Task> newChildren = [];
+    bool changed = false;
+    for (var child in current.children) {
+      final updatedChild = _insertChildIntoTask(child, parentId, newTask);
+      if (updatedChild != null) {
+        newChildren.add(updatedChild);
+        changed = true;
+      } else {
+        newChildren.add(child);
+      }
+    }
+    if (changed) {
+      return current.copyWith(children: newChildren);
+    }
+    for (int i = 0; i < current.children.length; i++) {
+      final update = _insertChildIntoTask(
+        current.children[i],
+        parentId,
+        newTask,
+      );
+      if (update != null) {
+        List<Task> children = List.from(current.children);
+        children[i] = update;
+        return current.copyWith(children: children);
+      }
+    }
+    return null;
   }
 
   /// タスクを更新
   void updateTask(String taskId, Task updatedTask) {
     final project = currentProject;
-    if (project == null) return;
+    if (project == null || _userId == null) return;
 
     for (var i = 0; i < project.tasks.length; i++) {
       if (project.tasks[i].id == taskId) {
+        // Updating a root task
         project.tasks[i] = updatedTask;
         notifyListeners();
+        _saveRootTask(updatedTask);
         return;
       }
-      _updateTaskRecursive(project.tasks[i], taskId, updatedTask);
+
+      final newRoot = _updateTaskInTree(project.tasks[i], taskId, updatedTask);
+      if (newRoot != null) {
+        project.tasks[i] = newRoot;
+        notifyListeners();
+        _saveRootTask(newRoot);
+        return;
+      }
     }
-    notifyListeners();
   }
 
-  void _updateTaskRecursive(Task current, String taskId, Task updatedTask) {
-    for (var i = 0; i < current.children.length; i++) {
-      if (current.children[i].id == taskId) {
-        current.children[i] = updatedTask;
-        return;
+  Task? _updateTaskInTree(Task current, String targetId, Task updatedTask) {
+    for (int i = 0; i < current.children.length; i++) {
+      if (current.children[i].id == targetId) {
+        List<Task> children = List.from(current.children);
+        children[i] = updatedTask;
+        return current.copyWith(children: children);
       }
-      _updateTaskRecursive(current.children[i], taskId, updatedTask);
+      final updatedChild = _updateTaskInTree(
+        current.children[i],
+        targetId,
+        updatedTask,
+      );
+      if (updatedChild != null) {
+        List<Task> children = List.from(current.children);
+        children[i] = updatedChild;
+        return current.copyWith(children: children);
+      }
     }
+    return null;
   }
 
   /// タスクを削除
   void deleteTask(String taskId) {
     final project = currentProject;
-    if (project == null) return;
+    if (project == null || _userId == null) return;
 
-    project.tasks.removeWhere((task) => task.id == taskId);
-    for (var task in project.tasks) {
-      _deleteTaskRecursive(task, taskId);
+    // Check if root
+    final rootIndex = project.tasks.indexWhere((t) => t.id == taskId);
+    if (rootIndex != -1) {
+      final task = project.tasks[rootIndex];
+      project.tasks.removeAt(rootIndex);
+      notifyListeners();
+      _deleteRootTaskFromFirestore(task);
+      return;
     }
-    notifyListeners();
+
+    // Check children
+    for (int i = 0; i < project.tasks.length; i++) {
+      final newRoot = _deleteTaskFromTree(project.tasks[i], taskId);
+      if (newRoot != null) {
+        project.tasks[i] = newRoot;
+        notifyListeners();
+        _saveRootTask(newRoot);
+        return;
+      }
+    }
   }
 
-  void _deleteTaskRecursive(Task current, String taskId) {
-    if (current.children.isEmpty) return;
-    current.children.removeWhere((child) => child.id == taskId);
-    for (var child in current.children) {
-      _deleteTaskRecursive(child, taskId);
+  Task? _deleteTaskFromTree(Task current, String targetId) {
+    List<Task> children = List.from(current.children);
+    int initialLen = children.length;
+    children.removeWhere((t) => t.id == targetId);
+
+    if (children.length < initialLen) {
+      return current.copyWith(children: children);
     }
+
+    for (int i = 0; i < children.length; i++) {
+      final updatedChild = _deleteTaskFromTree(children[i], targetId);
+      if (updatedChild != null) {
+        children[i] = updatedChild;
+        return current.copyWith(children: children);
+      }
+    }
+
+    return null;
   }
 
   /// タスクの展開状態を切り替え
@@ -178,29 +385,10 @@ class TaskProvider extends ChangeNotifier {
     final project = currentProject;
     if (project == null) return;
 
-    for (var i = 0; i < project.tasks.length; i++) {
-      if (project.tasks[i].id == taskId) {
-        project.tasks[i] = project.tasks[i].copyWith(
-          isExpanded: !project.tasks[i].isExpanded,
-        );
-        notifyListeners();
-        return;
-      }
-      _toggleExpandRecursive(project.tasks[i], taskId);
-    }
-    notifyListeners();
-  }
-
-  void _toggleExpandRecursive(Task current, String taskId) {
-    for (var i = 0; i < current.children.length; i++) {
-      if (current.children[i].id == taskId) {
-        current.children[i] = current.children[i].copyWith(
-          isExpanded: !current.children[i].isExpanded,
-        );
-        return;
-      }
-      _toggleExpandRecursive(current.children[i], taskId);
-    }
+    final task = project.tasks
+        .expand((t) => t.flatten())
+        .firstWhere((t) => t.id == taskId);
+    updateTask(taskId, task.copyWith(isExpanded: !task.isExpanded));
   }
 
   /// ルートタスクの順序を変更
@@ -214,6 +402,7 @@ class TaskProvider extends ChangeNotifier {
     final task = project.tasks.removeAt(oldIndex);
     project.tasks.insert(newIndex, task);
     notifyListeners();
+    // TODO: Save order to Firestore
   }
 
   /// 子タスクの順序を変更
@@ -221,211 +410,43 @@ class TaskProvider extends ChangeNotifier {
     final project = currentProject;
     if (project == null) return;
 
+    final parent = project.tasks
+        .expand((t) => t.flatten())
+        .firstWhere((t) => t.id == parentId);
+
+    final children = List<Task>.from(parent.children);
     if (oldIndex < newIndex) {
       newIndex -= 1;
     }
+    final item = children.removeAt(oldIndex);
+    children.insert(newIndex, item);
 
-    for (var i = 0; i < project.tasks.length; i++) {
-      if (project.tasks[i].id == parentId) {
-        final children = List<Task>.from(project.tasks[i].children);
-        final task = children.removeAt(oldIndex);
-        children.insert(newIndex, task);
-        project.tasks[i] = project.tasks[i].copyWith(children: children);
-        notifyListeners();
-        return;
-      }
-      if (_reorderChildTasksRecursive(
-        project.tasks[i],
-        parentId,
-        oldIndex,
-        newIndex,
-      )) {
-        notifyListeners();
-        return;
-      }
-    }
+    updateTask(parentId, parent.copyWith(children: children));
   }
 
-  bool _reorderChildTasksRecursive(
-    Task current,
-    String parentId,
-    int oldIndex,
-    int newIndex,
-  ) {
-    for (var i = 0; i < current.children.length; i++) {
-      if (current.children[i].id == parentId) {
-        final children = List<Task>.from(current.children[i].children);
-        final task = children.removeAt(oldIndex);
-        children.insert(newIndex, task);
-        current.children[i] = current.children[i].copyWith(children: children);
-        return true;
-      }
-      if (_reorderChildTasksRecursive(
-        current.children[i],
-        parentId,
-        oldIndex,
-        newIndex,
-      )) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  /// 依存関係を追加
+  /// 依存関係を追加/削除
   void addDependency(String fromTaskId, String toTaskId) {
-    if (fromTaskId == toTaskId) return; // 自分自身への依存は不可
-
     final project = currentProject;
     if (project == null) return;
 
-    // 循環参照チェックは簡易的に省略（必要なら実装）
-    _updateTaskDependency(project.tasks, toTaskId, fromTaskId, true);
-    notifyListeners();
+    final target = project.tasks
+        .expand((t) => t.flatten())
+        .firstWhere((t) => t.id == toTaskId);
+    if (target.dependencies.contains(fromTaskId)) return;
+
+    final newDeps = List<String>.from(target.dependencies)..add(fromTaskId);
+    updateTask(toTaskId, target.copyWith(dependencies: newDeps));
   }
 
-  /// 依存関係を削除
   void removeDependency(String fromTaskId, String toTaskId) {
     final project = currentProject;
     if (project == null) return;
+    final target = project.tasks
+        .expand((t) => t.flatten())
+        .firstWhere((t) => t.id == toTaskId);
 
-    _updateTaskDependency(project.tasks, toTaskId, fromTaskId, false);
-    notifyListeners();
-  }
-
-  void _updateTaskDependency(
-    List<Task> tasks,
-    String targetTaskId,
-    String dependencyId,
-    bool isAdd,
-  ) {
-    for (var i = 0; i < tasks.length; i++) {
-      if (tasks[i].id == targetTaskId) {
-        List<String> newDependencies = List.from(tasks[i].dependencies);
-        if (isAdd) {
-          if (!newDependencies.contains(dependencyId)) {
-            newDependencies.add(dependencyId);
-          }
-        } else {
-          newDependencies.remove(dependencyId);
-        }
-        tasks[i] = tasks[i].copyWith(dependencies: newDependencies);
-        return;
-      }
-      _updateTaskDependency(
-        tasks[i].children,
-        targetTaskId,
-        dependencyId,
-        isAdd,
-      );
-    }
-  }
-
-  /// サンプルデータを読み込み
-  void loadSampleData() {
-    _projects = [
-      Project(
-        id: 'p1',
-        name: '業務システム開発',
-        description: '基幹業務システムの刷新プロジェクト',
-        createdAt: DateTime.now(),
-        tasks: [
-          Task(
-            id: '1',
-            name: 'プロジェクト企画',
-            description: 'プロジェクトの立ち上げと企画',
-            startDate: DateTime(2025, 1, 1),
-            endDate: DateTime(2025, 1, 15),
-            progress: 0.8,
-            color: Colors.blue,
-            isExpanded: true,
-            children: [
-              Task(
-                id: '1-1',
-                name: '要件定義',
-                description: 'システム要件の定義',
-                startDate: DateTime(2025, 1, 1),
-                endDate: DateTime(2025, 1, 7),
-                progress: 1.0,
-                color: Colors.blue,
-              ),
-              Task(
-                id: '1-2',
-                name: '基本設計',
-                description: 'システムの基本設計',
-                startDate: DateTime(2025, 1, 8),
-                endDate: DateTime(2025, 1, 15),
-                progress: 0.6,
-                color: Colors.blue,
-              ),
-            ],
-          ),
-          Task(
-            id: '2',
-            name: '開発フェーズ',
-            description: '実装作業',
-            startDate: DateTime(2025, 1, 16),
-            endDate: DateTime(2025, 2, 28),
-            progress: 0.3,
-            color: Colors.green,
-            isExpanded: true,
-            children: [
-              Task(
-                id: '2-1',
-                name: 'フロントエンド開発',
-                description: 'UI/UXの実装',
-                startDate: DateTime(2025, 1, 16),
-                endDate: DateTime(2025, 2, 10),
-                progress: 0.5,
-                color: Colors.green,
-              ),
-              Task(
-                id: '2-2',
-                name: 'バックエンド開発',
-                description: 'サーバー側の実装',
-                startDate: DateTime(2025, 1, 16),
-                endDate: DateTime(2025, 2, 15),
-                progress: 0.3,
-                color: Colors.green,
-              ),
-            ],
-          ),
-        ],
-      ),
-      Project(
-        id: 'p2',
-        name: 'ウェブサイトリニューアル',
-        description: 'コーポレートサイトの全面リニューアル',
-        createdAt: DateTime.now().subtract(const Duration(days: 5)),
-        tasks: [
-          Task(
-            id: 'w1',
-            name: 'デザイン作成',
-            description: 'トップページと下層ページのデザイン',
-            startDate: DateTime(2025, 2, 1),
-            endDate: DateTime(2025, 2, 14),
-            progress: 0.2,
-            color: Colors.purple,
-          ),
-          Task(
-            id: 'w2',
-            name: 'コーディング',
-            description: 'HTML/CSS/JS実装',
-            startDate: DateTime(2025, 2, 15),
-            endDate: DateTime(2025, 2, 28),
-            progress: 0.0,
-            color: Colors.cyan,
-          ),
-        ],
-      ),
-    ];
-
-    // 最初のプロジェクトを選択
-    if (_projects.isNotEmpty) {
-      _currentProjectId = _projects.first.id;
-    }
-
-    notifyListeners();
+    final newDeps = List<String>.from(target.dependencies)..remove(fromTaskId);
+    updateTask(toTaskId, target.copyWith(dependencies: newDeps));
   }
 }
 
