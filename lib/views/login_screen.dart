@@ -1,10 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:provider/provider.dart';
+
 import '../repositories/auth_repository.dart';
 import '../repositories/firestore_repository.dart';
-import '../providers/task_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -64,22 +63,6 @@ class _LoginScreenState extends State<LoginScreen> {
       if (user != null) {
         // Create default data (Critical)
         await _firestoreRepository.createDefaultProject(user.uid);
-
-        // Send verification email (Non-critical)
-        if (!user.emailVerified) {
-          try {
-            await user.sendEmailVerification().timeout(
-              const Duration(seconds: 5),
-            );
-            // Show welcome message only if email sent successfully
-            if (mounted) {
-              context.read<TaskProvider>().setWelcomeMessage(true);
-            }
-          } catch (e) {
-            debugPrint('Failed to send verification email: $e');
-            // Proceed anyway
-          }
-        }
       }
     } on FirebaseAuthException catch (e) {
       setState(() {
@@ -122,7 +105,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('ログイン / 新規登録')),
+      appBar: AppBar(title: const Text('Gantts')),
       body: Center(
         child: SingleChildScrollView(
           child: Card(
@@ -132,6 +115,11 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  const Text(
+                    'ログイン / 新規登録',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 24),
                   TextField(
                     controller: _emailController,
                     decoration: const InputDecoration(labelText: 'メールアドレス'),

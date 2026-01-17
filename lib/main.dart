@@ -68,19 +68,6 @@ class _MyHomePageState extends State<MyHomePage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final taskProvider = context.read<TaskProvider>();
-      if (taskProvider.shouldShowWelcomeMessage) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('確認メールを送信しました。メールボックスを確認してください。'),
-            duration: Duration(seconds: 5),
-          ),
-        );
-        taskProvider.setWelcomeMessage(false);
-      }
-    });
   }
 
   @override
