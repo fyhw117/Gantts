@@ -22,6 +22,7 @@ class WBSView extends StatelessWidget {
                   : taskProvider.rootTasks.isEmpty
                   ? _buildEmptyState()
                   : ReorderableListView.builder(
+                      padding: EdgeInsets.zero,
                       buildDefaultDragHandles: false,
                       onReorder: (oldIndex, newIndex) {
                         taskProvider.reorderRootTasks(oldIndex, newIndex);
@@ -147,6 +148,7 @@ class WBSView extends StatelessWidget {
         _buildTaskItem(context, taskProvider, task, index, level),
         if (task.isExpanded && task.hasChildren)
           ReorderableListView.builder(
+            padding: EdgeInsets.zero,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             buildDefaultDragHandles: false,
