@@ -134,9 +134,26 @@ class _MyHomePageState extends State<MyHomePage>
                         decoration: BoxDecoration(
                           color: Theme.of(context).colorScheme.primary,
                         ),
-                        child: const Text(
-                          'GanttChart',
-                          style: TextStyle(color: Colors.white, fontSize: 24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'GanttChart',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                              ),
+                            ),
+                            const Spacer(),
+                            if (taskProvider.userEmail != null)
+                              Text(
+                                taskProvider.userEmail!,
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 14,
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                       ListTile(

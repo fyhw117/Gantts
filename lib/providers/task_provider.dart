@@ -108,6 +108,7 @@ class TaskProvider extends ChangeNotifier {
 
   List<Project> get projects => _projects;
   String? get currentProjectId => _currentProjectId;
+  String? get userEmail => _authRepository.currentUser?.email;
 
   Project? get currentProject {
     if (_currentProjectId == null) return null;

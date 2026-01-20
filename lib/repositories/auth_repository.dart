@@ -27,15 +27,7 @@ class AuthRepository {
   }
 
   Future<void> sendPasswordResetEmail(String email) async {
-    try {
-      await _firebaseAuth
-          .sendPasswordResetEmail(email: email)
-          .timeout(const Duration(seconds: 5));
-    } on TimeoutException {
-      // タイムアウトしても、メール送信自体は成功している可能性が高いためエラーにしない
-      // UI側では「送信しました」として処理を進める
-      print('Password reset email timeout (suppressed)');
-    }
+    await _firebaseAuth.sendPasswordResetEmail(email: email);
   }
 
   Future<void> deleteAccount() async {

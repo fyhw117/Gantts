@@ -198,61 +198,103 @@ class _LoginScreenState extends State<LoginScreen> {
     );
     return showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('パスワード再設定'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('登録したメールアドレスを入力してください。\n再設定用のリンクを送信します。'),
-              const SizedBox(height: 16),
-              TextField(
-                controller: resetEmailController,
-                decoration: const InputDecoration(labelText: 'メールアドレス'),
-                keyboardType: TextInputType.emailAddress,
+        bool isLoading = false;
+        String? dialogError;
+
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('パスワード再設定'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('登録したメールアドレスを入力してください。\n再設定用のリンクを送信します。'),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: resetEmailController,
+                    decoration: const InputDecoration(labelText: 'メールアドレス'),
+                    keyboardType: TextInputType.emailAddress,
+                    enabled: !isLoading,
+                  ),
+                  if (dialogError != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      dialogError!,
+                      style: const TextStyle(color: Colors.red, fontSize: 12),
+                    ),
+                  ],
+                ],
               ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('キャンセル'),
-            ),
-            TextButton(
-              onPressed: () async {
-                Navigator.pop(context);
-                try {
-                  await _authRepository.sendPasswordResetEmail(
-                    resetEmailController.text.trim(),
-                  );
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('パスワード再設定メールを送信しました。')),
-                    );
-                  }
-                } on FirebaseAuthException catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(_getErrorMessage(e)),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('エラーが発生しました: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              },
-              child: const Text('送信'),
-            ),
-          ],
+              actions: [
+                if (isLoading)
+                  const Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                else ...[
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('キャンセル'),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      setState(() {
+                        isLoading = true;
+                        dialogError = null;
+                      });
+
+                      try {
+                        await _authRepository.sendPasswordResetEmail(
+                          resetEmailController.text.trim(),
+                        );
+                        if (context.mounted) {
+                          Navigator.pop(context); // input dialog close
+                          showDialog(
+                            context: context,
+                            builder: (context) {
+                              return AlertDialog(
+                                title: const Text('送信完了'),
+                                content: const Text(
+                                  'パスワード再設定メールを送信しました。\nメールボックスをご確認ください。',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text('OK'),
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                        }
+                      } on FirebaseAuthException catch (e) {
+                        if (context.mounted) {
+                          setState(() {
+                            isLoading = false;
+                            dialogError = _getErrorMessage(e);
+                          });
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          setState(() {
+                            isLoading = false;
+                            dialogError = 'エラーが発生しました: $e';
+                          });
+                        }
+                      }
+                    },
+                    child: const Text('送信'),
+                  ),
+                ],
+              ],
+            );
+          },
         );
       },
     );
