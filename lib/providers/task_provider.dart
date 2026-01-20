@@ -4,11 +4,13 @@ import '../models/task_model.dart';
 import '../models/project_model.dart';
 import '../repositories/auth_repository.dart';
 import '../repositories/firestore_repository.dart';
+import '../services/excel_service.dart';
 
 /// タスクデータを管理するProvider
 class TaskProvider extends ChangeNotifier {
   final AuthRepository _authRepository = AuthRepository();
   final FirestoreRepository _firestoreRepository = FirestoreRepository();
+  final ExcelService _excelService = ExcelService();
 
   List<Project> _projects = [];
   String? _currentProjectId;
@@ -458,6 +460,37 @@ class TaskProvider extends ChangeNotifier {
 
     final newDeps = List<String>.from(target.dependencies)..remove(fromTaskId);
     updateTask(toTaskId, target.copyWith(dependencies: newDeps));
+  }
+
+  /// Excelへエクスポート
+  Future<void> exportTasksToExcel() async {
+    final project = currentProject;
+    if (project == null) return;
+
+    // 現在のルートタスク構造をそのまま渡す（Service側で再帰的に処理）
+    await _excelService.exportTasks(project, project.tasks);
+  }
+
+  /// Excelからインポート
+  Future<void> importTasksFromExcel() async {
+    final project = currentProject;
+    if (project == null || _userId == null) return;
+
+    try {
+      final importedTasks = await _excelService.importTasks();
+      if (importedTasks.isEmpty) return;
+
+      // 既存のタスクに追加するか、置換するか？
+      // ここでは「追加」として実装。既存のタスクの末尾に追加する。
+      for (var task in importedTasks) {
+        addTask(task); // addTask内部でFirestoreへの保存も行われる
+      }
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Import Error: $e');
+      rethrow;
+    }
   }
 }
 

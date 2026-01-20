@@ -171,6 +171,93 @@ class _MyHomePageState extends State<MyHomePage>
                       ),
                       const Divider(),
                       const Padding(
+                        padding: EdgeInsets.only(left: 16, top: 8, bottom: 8),
+                        child: Text(
+                          'データ連携',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.file_download),
+                        title: const Text('Excelエクスポート'),
+                        onTap: () async {
+                          Navigator.pop(context);
+                          try {
+                            await taskProvider.exportTasksToExcel();
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('エクスポートしました')),
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('エクスポート失敗: $e'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.file_upload),
+                        title: const Text('Excelインポート'),
+                        onTap: () async {
+                          Navigator.pop(context);
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (context) {
+                              return AlertDialog(
+                                title: const Text('Excelインポート'),
+                                content: const Text(
+                                  'Excelファイルからタスクを取り込みます。\n'
+                                  '現在のプロジェクトにタスクが追加されます。よろしいですか？',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(context, false),
+                                    child: const Text('キャンセル'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(context, true),
+                                    child: const Text('インポート'),
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+
+                          if (confirmed == true) {
+                            try {
+                              await taskProvider.importTasksFromExcel();
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('インポートしました')),
+                                );
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('インポート失敗: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          }
+                        },
+                      ),
+                      const Divider(),
+                      const Padding(
                         padding: EdgeInsets.all(16.0),
                         child: Text(
                           'プロジェクト切り替え',
