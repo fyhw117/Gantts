@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>プライバシーポリシー - Todomanager</title>
+    <title>プライバシーポリシー - GanttChart</title>
     <style>
         body {
             font-family: sans-serif;
@@ -12,40 +12,65 @@
             padding: 20px;
             max-width: 800px;
             margin: 0 auto;
+            color: #333;
         }
 
         h1 {
             border-bottom: 2px solid #333;
+            padding-bottom: 10px;
         }
 
         h2 {
-            color: #333;
+            border-left: 4px solid #333;
+            padding-left: 10px;
             margin-top: 30px;
+        }
+
+        p {
+            margin-bottom: 1em;
+        }
+
+        li {
+            margin-bottom: 0.5em;
         }
     </style>
 </head>
 
 <body>
     <h1>プライバシーポリシー</h1>
-    <p>Gantts（以下「本アプリ」）における、ユーザーの個人情報の取扱いについて以下の通り定めます。</p>
+    <p>GanttChart（以下「本アプリ」）における、ユーザーの個人情報の取扱いについて以下の通り定めます。</p>
 
-    <h2>1. 個人情報の収集・利用について</h2>
-    <p>本アプリは、ユーザー名、メールアドレス、連絡先などの個人情報を直接収集・取得することはありません。入力されたデータは、ユーザーの端末内（ローカルストレージ）のみに保存され、外部サーバーに送信されることはありません。
-    </p>
+    <h2>1. 収集する情報とその利用目的</h2>
+    <p>本アプリでは、サービスの提供にあたり、以下の情報を取得・利用します。</p>
+    <ul>
+        <li><strong>アカウント情報（メールアドレス、パスワード等）</strong><br>
+            利用者を識別し、本人認証を行うためにFirebase Authenticationを利用して管理します。</li>
+        <li><strong>ユーザーコンテンツ（タスク、プロジェクト情報など）</strong><br>
+            ユーザーが作成したデータをクラウド上で保存・管理するために、Firebase Cloud Firestoreに保存されます。これにより、データの永続化や機種変更時のデータ引き継ぎが可能になります。</li>
+    </ul>
 
-    <h2>2. 第三者への提供および外部送信</h2>
-    <p>本アプリでは、第三者が提供する広告配信、アクセス解析、SDK等のツールを使用していません。したがって、ユーザーのデータが第三者に提供されることはありません。</p>
+    <h2>2. サードパーティサービスの利用</h2>
+    <p>本アプリは、サービスの基盤としてGoogle Inc.が提供するFirebaseを利用しています。取得された情報はFirebaseのプライバシーポリシーに従って管理されます。</p>
+    <p><strong>Google Firebase</strong><br>
+    <a href="https://firebase.google.com/support/privacy" target="_blank">プライバシーポリシーを確認</a></p>
 
-    <h2>3. データの管理と削除（ユーザプライバシー選択）</h2>
-    <p>本アプリはサーバー上にデータを保持しないため、データの削除を希望される場合は、アプリをアンインストールすることで全てのデータが消去されます。個別のデータ管理に関するお問い合わせは、以下の窓口までご連絡ください。</p>
+    <h2>3. 情報の第三者への提供</h2>
+    <p>法令に基づく場合、または本人の同意がある場合を除き、取得した個人情報を第三者に提供することはありません。ただし、前述のクラウドサービスプロバイダー（Google Firebase）へのデータ委託は除きます。</p>
 
-    <h2>4. 免責事項</h2>
+    <h2>4. データの削除について</h2>
+    <p>ユーザーはいつでもアカウント削除を行うことができます。アカウントを削除した場合、関連する個人情報およびユーザーデータはサーバーから削除されます。</p>
+
+    <h2>5. 免責事項</h2>
     <p>本アプリの利用により生じた損害について、開発者は一切の責任を負いません。各自の責任においてご利用ください。</p>
 
-    <h2>5. お問い合わせ窓口</h2>
-    <p>本ポリシーに関するお問い合わせは、<a
-            href="https://docs.google.com/forms/d/e/1FAIpQLSfCqEA_KrTqYuFOzxBUdgtkDwQKOAoc3m4rcHXOxfNW0jJkjg/viewform?usp=publish-editor">
-            制定日：2026年1月13日
+    <h2>6. お問い合わせ窓口</h2>
+    <p>本ポリシーに関するお問い合わせは、以下のリンク先フォームよりご連絡ください。</p>
+    <p>
+        <a href="https://docs.google.com/forms/d/e/1FAIpQLSfCqEA_KrTqYuFOzxBUdgtkDwQKOAoc3m4rcHXOxfNW0jJkjg/viewform?usp=publish-editor">お問い合わせフォーム</a>
+    </p>
+    
+    <p style="text-align: right; margin-top: 40px; color: #666;">
+        制定日：2026年1月21日
     </p>
 </body>
 
