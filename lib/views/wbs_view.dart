@@ -249,10 +249,8 @@ class WBSView extends StatelessWidget {
                   style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                 ),
                 const SizedBox(width: 16),
-                Icon(Icons.schedule, size: 12, color: Colors.grey[600]),
-                const SizedBox(width: 4),
                 Text(
-                  '${task.durationInDays}日',
+                  '${(task.progress * 100).toStringAsFixed(0)}%',
                   style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                 ),
               ],
