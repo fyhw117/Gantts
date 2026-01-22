@@ -188,6 +188,7 @@ class WBSView extends StatelessWidget {
         dense: true,
         visualDensity: const VisualDensity(vertical: -4),
         minVerticalPadding: 0,
+        horizontalTitleGap: 6,
         contentPadding: const EdgeInsets.only(left: 8, right: 8),
         leading: Row(
           // 変更点4: Rowで囲み、ドラッグハンドルと展開ボタンを並べる
@@ -198,17 +199,22 @@ class WBSView extends StatelessWidget {
               index: index,
               child: const Icon(Icons.drag_indicator, color: Colors.grey),
             ),
-            task.hasChildren
-                ? IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    iconSize: 16,
-                    icon: Icon(
-                      task.isExpanded ? Icons.expand_more : Icons.chevron_right,
-                    ),
-                    onPressed: () => taskProvider.toggleExpand(task.id),
-                  )
-                : const SizedBox(width: 16), // 展開ボタンがない場合のスペースを確保
+            SizedBox(
+              width: 24,
+              height: 32,
+              child: task.hasChildren
+                  ? IconButton(
+                      padding: EdgeInsets.zero,
+                      iconSize: 24,
+                      icon: Icon(
+                        task.isExpanded
+                            ? Icons.expand_more
+                            : Icons.chevron_right,
+                      ),
+                      onPressed: () => taskProvider.toggleExpand(task.id),
+                    )
+                  : null,
+            ),
           ],
         ),
         title: Row(
