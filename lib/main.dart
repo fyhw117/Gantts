@@ -24,7 +24,7 @@ class MyApp extends StatelessWidget {
       create: (_) => TaskProvider(),
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
-        title: 'GanttChart',
+        title: 'Gantts',
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
             seedColor: const Color(0xFF607557),
