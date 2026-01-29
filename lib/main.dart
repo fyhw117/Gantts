@@ -138,7 +138,7 @@ class _MyHomePageState extends State<MyHomePage>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              'GanttChart',
+                              'Gantts',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 24,
