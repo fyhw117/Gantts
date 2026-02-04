@@ -59,7 +59,7 @@ class ExcelService {
       // Web: Download
       final blob = html.Blob([fileBytes]);
       final url = html.Url.createObjectUrlFromBlob(blob);
-      final anchor = html.AnchorElement(href: url)
+      html.AnchorElement(href: url)
         ..setAttribute("download", fileName)
         ..click();
       html.Url.revokeObjectUrl(url);
@@ -81,7 +81,7 @@ class ExcelService {
       TextCellValue(_dateFormat.format(task.startDate)),
       TextCellValue(_dateFormat.format(task.endDate)),
       DoubleCellValue(task.progress),
-      TextCellValue(task.color.value.toRadixString(16)),
+      TextCellValue(task.color.toARGB32().toRadixString(16)),
       TextCellValue(task.dependencies.join(',')),
       TextCellValue(task.description),
     ];
@@ -124,7 +124,7 @@ class ExcelService {
     if (sheet.maxRows < 2) return [];
 
     // ヘルパー: CellValueから値を取り出す
-    dynamic _getCellValue(CellValue? cellValue) {
+    dynamic getCellValue(CellValue? cellValue) {
       if (cellValue is TextCellValue) {
         return cellValue.value;
       } else if (cellValue is IntCellValue) {
@@ -143,7 +143,7 @@ class ExcelService {
     final headerRow = sheet.row(0);
     // Header handling
     final headers = headerRow.map((c) {
-      final val = _getCellValue(c?.value);
+      final val = getCellValue(c?.value);
       return val?.toString() ?? '';
     }).toList();
 
@@ -163,19 +163,20 @@ class ExcelService {
     for (var i = 1; i < sheet.maxRows; i++) {
       final row = sheet.row(i);
       // 空行スキップ判定
-      if (row.isEmpty || row.every((c) => c == null || c.value == null))
+      if (row.isEmpty || row.every((c) => c == null || c.value == null)) {
         continue;
+      }
 
       // ヘルパー: セル値取得
       String getStr(int idx) {
         if (idx < 0 || idx >= row.length || row[idx] == null) return '';
-        final val = _getCellValue(row[idx]!.value);
+        final val = getCellValue(row[idx]!.value);
         return val?.toString() ?? '';
       }
 
       double getDouble(int idx) {
         if (idx < 0 || idx >= row.length || row[idx] == null) return 0.0;
-        final val = _getCellValue(row[idx]!.value);
+        final val = getCellValue(row[idx]!.value);
         if (val is double) return val;
         if (val is int) return val.toDouble();
         if (val is String) return double.tryParse(val) ?? 0.0;

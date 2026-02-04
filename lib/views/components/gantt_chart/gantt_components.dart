@@ -24,7 +24,7 @@ class TrianglePainter extends CustomPainter {
     path.close();
 
     // Shadow
-    canvas.drawShadow(path, Colors.black.withOpacity(0.3), 2.0, false);
+    canvas.drawShadow(path, Colors.black.withValues(alpha: 0.3), 2.0, false);
 
     canvas.drawPath(path, paint);
     canvas.drawPath(path, borderPaint);
@@ -83,15 +83,15 @@ class _ResizeHandleState extends State<ResizeHandle> {
             width: 8,
             height: 24, // Ensure visible height
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
               border: Border.all(
-                color: widget.color.withOpacity(0.8),
+                color: widget.color.withValues(alpha: 0.8),
                 width: 1.5,
               ),
               borderRadius: BorderRadius.circular(4),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.15),
+                  color: Colors.black.withValues(alpha: 0.15),
                   blurRadius: 2,
                   offset: const Offset(0, 1),
                 ),

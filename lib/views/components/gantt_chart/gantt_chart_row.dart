@@ -123,14 +123,14 @@ class _GanttChartRowState extends State<GanttChartRow> {
             child: Container(
               width: width,
               decoration: BoxDecoration(
-                color: task.color.withOpacity(0.3),
+                color: task.color.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(4),
                 border: widget.dependencySourceId == task.id
                     ? Border.all(color: Colors.red, width: 2)
                     : null,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
@@ -195,9 +195,9 @@ class _GanttChartRowState extends State<GanttChartRow> {
             top: 0,
             bottom: 0,
             child: DragTarget<String>(
-              onWillAccept: (data) => data != null && data != task.id,
-              onAccept: (data) =>
-                  widget.taskProvider.addDependency(data, task.id),
+              onWillAcceptWithDetails: (details) => details.data != task.id,
+              onAcceptWithDetails: (details) =>
+                  widget.taskProvider.addDependency(details.data, task.id),
               builder: (context, candidateData, rejectedData) {
                 return Container(
                   width: 20,

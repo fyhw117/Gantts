@@ -38,10 +38,10 @@ class GanttGridPainter extends CustomPainter {
 
       // Draw background
       if (isToday) {
-        paint.color = primaryColor.withOpacity(0.3);
+        paint.color = primaryColor.withValues(alpha: 0.3);
         canvas.drawRect(Rect.fromLTWH(x, 0, dayWidth, size.height), paint);
       } else if (isWeekend) {
-        paint.color = tertiaryColor.withOpacity(0.3);
+        paint.color = tertiaryColor.withValues(alpha: 0.3);
         canvas.drawRect(Rect.fromLTWH(x, 0, dayWidth, size.height), paint);
       }
 

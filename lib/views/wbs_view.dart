@@ -66,7 +66,7 @@ class WBSView extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
-        color: Theme.of(context).primaryColor.withOpacity(0.1),
+        color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
         border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
       ),
       child: Row(

@@ -47,11 +47,13 @@ class GanttChartHeader extends StatelessWidget {
                       left: BorderSide(color: Colors.grey.shade300),
                     ),
                     color: isToday
-                        ? Theme.of(context).colorScheme.primary.withOpacity(0.3)
+                        ? Theme.of(
+                            context,
+                          ).colorScheme.primary.withValues(alpha: 0.3)
                         : (isWeekend
                               ? Theme.of(
                                   context,
-                                ).colorScheme.tertiary.withOpacity(0.3)
+                                ).colorScheme.tertiary.withValues(alpha: 0.3)
                               : Colors.transparent),
                   ),
                   child: Center(
@@ -104,7 +106,7 @@ class GanttChartHeader extends StatelessWidget {
             ),
             child: Center(
               child: Text(
-                '$currentYear年${currentMonth}月',
+                '$currentYear年$currentMonth月',
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 13,
@@ -133,7 +135,7 @@ class GanttChartHeader extends StatelessWidget {
           ),
           child: Center(
             child: Text(
-              '$currentYear年${currentMonth}月',
+              '$currentYear年$currentMonth月',
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               overflow: TextOverflow.ellipsis,
             ),

@@ -79,6 +79,35 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _signInAnonymously() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+    try {
+      await _authRepository.signInAnonymously();
+
+      // ユーザー登録成功にサンプルデータを作成
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        // Create default data (Critical)
+        await _firestoreRepository.createDefaultProject(user.uid);
+      }
+    } on FirebaseAuthException catch (e) {
+      setState(() {
+        _errorMessage = _getErrorMessage(e);
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'エラーが発生しました: $e';
+      });
+    } finally {
+      setState(() {
+        if (mounted) _isLoading = false;
+      });
+    }
+  }
+
   String _getErrorMessage(FirebaseAuthException e) {
     switch (e.code) {
       case 'invalid-email':
@@ -179,6 +208,14 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: OutlinedButton(
                             onPressed: _signUp,
                             child: const Text('新規登録'),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: TextButton(
+                            onPressed: _signInAnonymously,
+                            child: const Text('ゲストとして利用'),
                           ),
                         ),
                       ],

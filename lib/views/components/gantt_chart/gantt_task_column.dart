@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../models/task_model.dart';
 import '../../../providers/task_provider.dart';
 
 class GanttTaskColumn extends StatelessWidget {

@@ -117,7 +117,7 @@ class Task {
       'startDate': Timestamp.fromDate(startDate),
       'endDate': Timestamp.fromDate(endDate),
       'progress': progress,
-      'color': color.value,
+      'color': color.toARGB32(),
       'dependencies': dependencies,
       'children': children.map((child) => child.toMap()).toList(),
       'isExpanded': isExpanded,

@@ -22,6 +22,10 @@ class AuthRepository {
     );
   }
 
+  Future<void> signInAnonymously() async {
+    await _firebaseAuth.signInAnonymously();
+  }
+
   Future<void> signOut() async {
     await _firebaseAuth.signOut();
   }

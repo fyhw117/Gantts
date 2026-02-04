@@ -96,7 +96,7 @@ class _MyHomePageState extends State<MyHomePage>
               labelColor: Theme.of(context).colorScheme.onPrimary,
               unselectedLabelColor: Theme.of(
                 context,
-              ).colorScheme.onPrimary.withOpacity(0.7),
+              ).colorScheme.onPrimary.withValues(alpha: 0.7),
               indicatorColor: Theme.of(context).colorScheme.onPrimary,
               indicatorWeight: 2.0,
               tabs: const [
@@ -281,83 +281,130 @@ class _MyHomePageState extends State<MyHomePage>
                 const Divider(),
                 ListTile(
                   leading: const Icon(Icons.logout),
-                  title: const Text('ログアウト'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    taskProvider.signOut();
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.delete_forever, color: Colors.red),
-                  title: const Text(
-                    'アカウント削除',
-                    style: TextStyle(color: Colors.red),
-                  ),
+                  title: Text(taskProvider.isAnonymous ? 'ゲスト利用終了' : 'ログアウト'),
                   onTap: () async {
                     Navigator.pop(context);
-                    final confirmed = await showDialog<bool>(
-                      context: context,
-                      builder: (context) {
-                        return AlertDialog(
-                          title: const Text('アカウント削除'),
-                          content: const Text(
-                            '本当にアカウントを削除しますか？\n'
-                            'この操作は取り消せません。\n'
-                            '保存されているすべてのデータが失われます。',
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, false),
-                              child: const Text('キャンセル'),
+                    if (taskProvider.isAnonymous) {
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (context) {
+                          return AlertDialog(
+                            title: const Text('ゲスト利用終了'),
+                            content: const Text(
+                              'ゲスト利用を終了しますか？\n'
+                              '保存されたすべてのデータが削除され、復旧できなくなります。',
                             ),
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, true),
-                              style: TextButton.styleFrom(
-                                foregroundColor: Colors.red,
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: const Text('キャンセル'),
                               ),
-                              child: const Text('削除する'),
-                            ),
-                          ],
-                        );
-                      },
-                    );
-
-                    if (confirmed == true) {
-                      try {
-                        await taskProvider.deleteAccount();
-                      } on FirebaseAuthException catch (e) {
-                        if (context.mounted) {
-                          if (e.code == 'requires-recent-login') {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'セキュリティのため、再ログインが必要です。一度ログアウトして再度ログインしてからお試しください。',
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.red,
                                 ),
-                                backgroundColor: Colors.red,
+                                child: const Text('終了する'),
                               ),
-                            );
-                          } else {
+                            ],
+                          );
+                        },
+                      );
+
+                      if (confirmed == true) {
+                        try {
+                          await taskProvider.deleteAccount();
+                        } catch (e) {
+                          if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text('エラーが発生しました: ${e.message}'),
+                                content: Text('エラーが発生しました: $e'),
                                 backgroundColor: Colors.red,
                               ),
                             );
                           }
                         }
-                      } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('エラーが発生しました: $e'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
                       }
+                    } else {
+                      taskProvider.signOut();
                     }
                   },
                 ),
+                if (!taskProvider.isAnonymous)
+                  ListTile(
+                    leading: const Icon(
+                      Icons.delete_forever,
+                      color: Colors.red,
+                    ),
+                    title: const Text(
+                      'アカウント削除',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (context) {
+                          return AlertDialog(
+                            title: const Text('アカウント削除'),
+                            content: const Text(
+                              '本当にアカウントを削除しますか？\n'
+                              'この操作は取り消せません。\n'
+                              '保存されているすべてのデータが失われます。',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: const Text('キャンセル'),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.red,
+                                ),
+                                child: const Text('削除する'),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+
+                      if (confirmed == true) {
+                        try {
+                          await taskProvider.deleteAccount();
+                        } on FirebaseAuthException catch (e) {
+                          if (context.mounted) {
+                            if (e.code == 'requires-recent-login') {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'セキュリティのため、再ログインが必要です。一度ログアウトして再度ログインしてからお試しください。',
+                                  ),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('エラーが発生しました: ${e.message}'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('エラーが発生しました: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      }
+                    },
+                  ),
                 const SizedBox(height: 24),
               ],
             ),
