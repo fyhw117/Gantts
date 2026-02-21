@@ -116,11 +116,34 @@ class ProjectListView extends StatelessWidget {
   }
 
   void _showProjectDialog(BuildContext context, {Project? project}) {
+    final isEditing = project != null;
+
+    if (!isEditing) {
+      final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+      if (taskProvider.projects.length >= 2) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('プロジェクト作成上限'),
+            content: const Text(
+              '無料プランではプロジェクトを2つまでしか作成できません。\n\n※今後のアップデートで、プレミアムプラン（課金）によるプロジェクト作成数の上限解放などを予定しています！',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+    }
+
     final nameController = TextEditingController(text: project?.name ?? '');
     final descriptionController = TextEditingController(
       text: project?.description ?? '',
     );
-    final isEditing = project != null;
 
     showDialog(
       context: context,
