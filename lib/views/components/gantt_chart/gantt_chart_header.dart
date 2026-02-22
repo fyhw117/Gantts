@@ -46,15 +46,11 @@ class GanttChartHeader extends StatelessWidget {
                     border: Border(
                       left: BorderSide(color: Colors.grey.shade300),
                     ),
-                    color: isToday
+                    color: isWeekend
                         ? Theme.of(
                             context,
-                          ).colorScheme.primary.withValues(alpha: 0.3)
-                        : (isWeekend
-                              ? Theme.of(
-                                  context,
-                                ).colorScheme.tertiary.withValues(alpha: 0.3)
-                              : Colors.transparent),
+                          ).colorScheme.tertiary.withValues(alpha: 0.3)
+                        : Colors.transparent,
                   ),
                   child: Stack(
                     clipBehavior: Clip.none,
