@@ -182,144 +182,151 @@ class WBSView extends StatelessWidget {
     return Container(
       margin: EdgeInsets.only(left: level * 24.0),
       decoration: BoxDecoration(
+        color: task.progress >= 1.0 ? Colors.grey.shade300 : Colors.transparent,
         border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
       ),
-      child: ListTile(
-        dense: true,
-        visualDensity: const VisualDensity(vertical: -4),
-        minVerticalPadding: 0,
-        horizontalTitleGap: 6,
-        contentPadding: const EdgeInsets.only(left: 8, right: 8),
-        leading: Row(
-          // 変更点4: Rowで囲み、ドラッグハンドルと展開ボタンを並べる
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ReorderableDragStartListener(
-              // 変更点4: ドラッグハンドルを追加
-              index: index,
-              child: const Icon(Icons.drag_indicator, color: Colors.grey),
-            ),
-            SizedBox(
-              width: 24,
-              height: 32,
-              child: task.hasChildren
-                  ? IconButton(
-                      padding: EdgeInsets.zero,
-                      iconSize: 24,
-                      icon: Icon(
-                        task.isExpanded
-                            ? Icons.expand_more
-                            : Icons.chevron_right,
-                      ),
-                      onPressed: () => taskProvider.toggleExpand(task.id),
-                    )
-                  : null,
-            ),
-          ],
-        ),
-        title: Row(
-          children: [
-            Container(
-              width: 4,
-              height: 14,
-              color: task.color,
-              margin: const EdgeInsets.only(right: 8),
-            ),
-            Expanded(
-              child: Text(
-                task.name,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                ),
+      child: Opacity(
+        opacity: task.progress >= 1.0 ? 0.5 : 1.0,
+        child: ListTile(
+          dense: true,
+          visualDensity: const VisualDensity(vertical: -4),
+          minVerticalPadding: 0,
+          horizontalTitleGap: 6,
+          contentPadding: const EdgeInsets.only(left: 8, right: 8),
+          leading: Row(
+            // 変更点4: Rowで囲み、ドラッグハンドルと展開ボタンを並べる
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ReorderableDragStartListener(
+                // 変更点4: ドラッグハンドルを追加
+                index: index,
+                child: const Icon(Icons.drag_indicator, color: Colors.grey),
               ),
-            ),
-          ],
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(Icons.calendar_today, size: 12, color: Colors.grey[600]),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    '${_formatDate(task.startDate)} - ${_formatDate(task.endDate)}',
-                    style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '${(task.progress * 100).toStringAsFixed(0)}%',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[700],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(2),
-              child: LinearProgressIndicator(
-                value: task.progress,
-                backgroundColor: Colors.grey.shade200,
+              SizedBox(
+                width: 24,
+                height: 32,
+                child: task.hasChildren
+                    ? IconButton(
+                        padding: EdgeInsets.zero,
+                        iconSize: 24,
+                        icon: Icon(
+                          task.isExpanded
+                              ? Icons.expand_more
+                              : Icons.chevron_right,
+                        ),
+                        onPressed: () => taskProvider.toggleExpand(task.id),
+                      )
+                    : null,
+              ),
+            ],
+          ),
+          title: Row(
+            children: [
+              Container(
+                width: 4,
+                height: 14,
                 color: task.color,
-                minHeight: 4,
+                margin: const EdgeInsets.only(right: 8),
               ),
-            ),
-            const SizedBox(height: 4),
-          ],
-        ),
-        trailing: PopupMenuButton<String>(
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(),
-          iconSize: 20,
-          onSelected: (value) {
-            switch (value) {
-              case 'add_child':
-                _showAddTaskDialog(context, taskProvider, task);
-                break;
-              case 'edit':
-                _showEditTaskDialog(context, taskProvider, task);
-                break;
-              case 'delete':
-                _confirmDelete(context, taskProvider, task);
-                break;
-            }
-          },
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'add_child',
-              child: Row(
+              Expanded(
+                child: Text(
+                  task.name,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                    decoration: task.progress >= 1.0
+                        ? TextDecoration.lineThrough
+                        : null,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 4),
+              Row(
                 children: [
-                  Icon(Icons.add_circle_outline),
-                  SizedBox(width: 8),
-                  Text('子タスク追加'),
+                  Icon(Icons.calendar_today, size: 12, color: Colors.grey[600]),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      '${_formatDate(task.startDate)} - ${_formatDate(task.endDate)}',
+                      style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${(task.progress * 100).toStringAsFixed(0)}%',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[700],
+                    ),
+                  ),
                 ],
               ),
-            ),
-            const PopupMenuItem(
-              value: 'edit',
-              child: Row(
-                children: [Icon(Icons.edit), SizedBox(width: 8), Text('編集')],
+              const SizedBox(height: 4),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(2),
+                child: LinearProgressIndicator(
+                  value: task.progress,
+                  backgroundColor: Colors.grey.shade200,
+                  color: task.color,
+                  minHeight: 4,
+                ),
               ),
-            ),
-            const PopupMenuItem(
-              value: 'delete',
-              child: Row(
-                children: [
-                  Icon(Icons.delete, color: Colors.red),
-                  SizedBox(width: 8),
-                  Text('削除', style: TextStyle(color: Colors.red)),
-                ],
+              const SizedBox(height: 4),
+            ],
+          ),
+          trailing: PopupMenuButton<String>(
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            iconSize: 20,
+            onSelected: (value) {
+              switch (value) {
+                case 'add_child':
+                  _showAddTaskDialog(context, taskProvider, task);
+                  break;
+                case 'edit':
+                  _showEditTaskDialog(context, taskProvider, task);
+                  break;
+                case 'delete':
+                  _confirmDelete(context, taskProvider, task);
+                  break;
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'add_child',
+                child: Row(
+                  children: [
+                    Icon(Icons.add_circle_outline),
+                    SizedBox(width: 8),
+                    Text('子タスク追加'),
+                  ],
+                ),
               ),
-            ),
-          ],
+              const PopupMenuItem(
+                value: 'edit',
+                child: Row(
+                  children: [Icon(Icons.edit), SizedBox(width: 8), Text('編集')],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('削除', style: TextStyle(color: Colors.red)),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

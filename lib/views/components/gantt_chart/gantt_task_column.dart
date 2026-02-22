@@ -69,84 +69,93 @@ class GanttTaskColumn extends StatelessWidget {
                       bottom: 0,
                     ),
                     decoration: BoxDecoration(
+                      color: task.progress >= 1.0
+                          ? Colors.grey.shade300
+                          : Colors.transparent,
                       border: Border(
                         bottom: BorderSide(color: Colors.grey.shade200),
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        // 展開/折りたたみボタン
-                        SizedBox(
-                          width: 16,
-                          child: task.hasChildren
-                              ? IconButton(
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                  iconSize: 16,
-                                  icon: Icon(
-                                    task.isExpanded
-                                        ? Icons.expand_more
-                                        : Icons.chevron_right,
-                                    size: 16,
-                                  ),
-                                  onPressed: () =>
-                                      taskProvider.toggleExpand(task.id),
-                                )
-                              : const SizedBox(),
-                        ),
-                        const SizedBox(width: 2),
-                        // タスク情報
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 3,
-                                    height: 14,
-                                    color: task.color,
-                                    margin: const EdgeInsets.only(right: 2),
-                                  ),
-                                  Expanded(
-                                    child: Text(
-                                      task.name,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 12,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
+                    child: Opacity(
+                      opacity: task.progress >= 1.0 ? 0.5 : 1.0,
+                      child: Row(
+                        children: [
+                          // 展開/折りたたみボタン
+                          SizedBox(
+                            width: 16,
+                            child: task.hasChildren
+                                ? IconButton(
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    iconSize: 16,
+                                    icon: Icon(
+                                      task.isExpanded
+                                          ? Icons.expand_more
+                                          : Icons.chevron_right,
+                                      size: 16,
                                     ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 1),
-                              Row(
-                                children: [
-                                  Text(
-                                    '${_formatDate(task.startDate)} - ${_formatDate(task.endDate)}',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    '${(task.progress * 100).toStringAsFixed(0)}%',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                                    onPressed: () =>
+                                        taskProvider.toggleExpand(task.id),
+                                  )
+                                : const SizedBox(),
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 2),
+                          // タスク情報
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 3,
+                                      height: 14,
+                                      color: task.color,
+                                      margin: const EdgeInsets.only(right: 2),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        task.name,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 12,
+                                          decoration: task.progress >= 1.0
+                                              ? TextDecoration.lineThrough
+                                              : null,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 1),
+                                Row(
+                                  children: [
+                                    Text(
+                                      '${_formatDate(task.startDate)} - ${_formatDate(task.endDate)}',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      '${(task.progress * 100).toStringAsFixed(0)}%',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 },
