@@ -92,8 +92,10 @@ class _MyHomePageState extends State<MyHomePage>
           appBar: AppBar(
             backgroundColor: Theme.of(context).colorScheme.primary,
             foregroundColor: Theme.of(context).colorScheme.onPrimary,
-            title: Text(title, style: const TextStyle(fontSize: 16)),
-            toolbarHeight: 40,
+            title: Text(
+              title,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             bottom: TabBar(
               controller: _tabController,
               labelColor: Theme.of(context).colorScheme.onPrimary,
