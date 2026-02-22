@@ -33,6 +33,9 @@ class MyApp extends StatelessWidget {
             tertiary: const Color(0xFFF3D083),
           ),
           useMaterial3: true,
+          snackBarTheme: const SnackBarThemeData(
+            behavior: SnackBarBehavior.floating,
+          ),
         ),
         home: StreamBuilder<User?>(
           stream: FirebaseAuth.instance.authStateChanges(),
