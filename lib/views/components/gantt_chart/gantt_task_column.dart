@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../providers/task_provider.dart';
+import '../../../models/task_model.dart';
 
 class GanttTaskColumn extends StatelessWidget {
   final List<TaskWithLevel> tasks;
@@ -8,6 +9,8 @@ class GanttTaskColumn extends StatelessWidget {
   final double width;
   final double headerHeight;
   final double rowHeight;
+  final String? dependencySourceId;
+  final ValueChanged<String?> onDependencySourceIdChanged;
 
   const GanttTaskColumn({
     super.key,
@@ -17,6 +20,8 @@ class GanttTaskColumn extends StatelessWidget {
     required this.width,
     required this.headerHeight,
     required this.rowHeight,
+    required this.dependencySourceId,
+    required this.onDependencySourceIdChanged,
   });
 
   String _formatDate(DateTime date) {
@@ -74,87 +79,135 @@ class GanttTaskColumn extends StatelessWidget {
                           : Colors.transparent,
                       border: Border(
                         bottom: BorderSide(color: Colors.grey.shade200),
+                        left: dependencySourceId == task.id
+                            ? const BorderSide(color: Colors.red, width: 4)
+                            : BorderSide.none,
                       ),
                     ),
                     child: Opacity(
                       opacity: task.progress >= 1.0 ? 0.5 : 1.0,
-                      child: Row(
-                        children: [
-                          // 展開/折りたたみボタン
-                          SizedBox(
-                            width: 16,
-                            child: task.hasChildren
-                                ? IconButton(
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(),
-                                    iconSize: 16,
-                                    icon: Icon(
-                                      task.isExpanded
-                                          ? Icons.expand_more
-                                          : Icons.chevron_right,
-                                      size: 16,
-                                    ),
-                                    onPressed: () =>
-                                        taskProvider.toggleExpand(task.id),
-                                  )
-                                : const SizedBox(),
-                          ),
-                          const SizedBox(width: 2),
-                          // タスク情報
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      width: 3,
-                                      height: 14,
-                                      color: task.color,
-                                      margin: const EdgeInsets.only(right: 2),
-                                    ),
-                                    Expanded(
-                                      child: Text(
-                                        task.name,
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 12,
-                                          decoration: task.progress >= 1.0
-                                              ? TextDecoration.lineThrough
-                                              : null,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.translucent,
+                        onTap: () {
+                          if (dependencySourceId != null) {
+                            if (dependencySourceId != task.id) {
+                              if (task.dependencies.contains(
+                                dependencySourceId,
+                              )) {
+                                taskProvider.removeDependency(
+                                  dependencySourceId!,
+                                  task.id,
+                                );
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('関連付けを解除しました')),
+                                );
+                              } else {
+                                taskProvider.addDependency(
+                                  dependencySourceId!,
+                                  task.id,
+                                );
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('関連付けを追加しました')),
+                                );
+                              }
+                              onDependencySourceIdChanged(null);
+                            } else {
+                              onDependencySourceIdChanged(null);
+                            }
+                          }
+                        },
+                        onSecondaryTapUp: (details) {
+                          _showContextMenu(
+                            context,
+                            details.globalPosition,
+                            task,
+                          );
+                        },
+                        onLongPressStart: (details) {
+                          _showContextMenu(
+                            context,
+                            details.globalPosition,
+                            task,
+                          );
+                        },
+                        child: Row(
+                          children: [
+                            // 展開/折りたたみボタン
+                            SizedBox(
+                              width: 16,
+                              child: task.hasChildren
+                                  ? IconButton(
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                      iconSize: 16,
+                                      icon: Icon(
+                                        task.isExpanded
+                                            ? Icons.expand_more
+                                            : Icons.chevron_right,
+                                        size: 16,
                                       ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 1),
-                                Row(
-                                  children: [
-                                    Text(
-                                      '${_formatDate(task.startDate)} - ${_formatDate(task.endDate)}',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      '${(task.progress * 100).toStringAsFixed(0)}%',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                                      onPressed: () =>
+                                          taskProvider.toggleExpand(task.id),
+                                    )
+                                  : const SizedBox(),
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 2),
+                            // タスク情報
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        width: 3,
+                                        height: 14,
+                                        color: task.color,
+                                        margin: const EdgeInsets.only(right: 2),
+                                      ),
+                                      Expanded(
+                                        child: Text(
+                                          task.name,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 12,
+                                            decoration: task.progress >= 1.0
+                                                ? TextDecoration.lineThrough
+                                                : null,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 1),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        '${_formatDate(task.startDate)} - ${_formatDate(task.endDate)}',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        '${(task.progress * 100).toStringAsFixed(0)}%',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   );
@@ -165,5 +218,29 @@ class GanttTaskColumn extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _showContextMenu(BuildContext context, Offset position, Task task) {
+    showMenu(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        position.dx,
+        position.dy,
+        position.dx,
+        position.dy,
+      ),
+      items: [
+        const PopupMenuItem(
+          value: 'connect',
+          child: Row(
+            children: [Icon(Icons.link), SizedBox(width: 8), Text('関連付けを編集')],
+          ),
+        ),
+      ],
+    ).then((value) {
+      if (value == 'connect') {
+        onDependencySourceIdChanged(task.id);
+      }
+    });
   }
 }

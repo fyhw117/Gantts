@@ -98,6 +98,12 @@ class _GanttChartViewState extends State<GanttChartView> {
                     width: taskLabelWidth,
                     headerHeight: headerHeight,
                     rowHeight: taskRowHeight,
+                    dependencySourceId: _dependencySourceId,
+                    onDependencySourceIdChanged: (id) {
+                      setState(() {
+                        _dependencySourceId = id;
+                      });
+                    },
                   ),
                   // 右側: ガントチャート (ズーム・スクロール可能)
                   Expanded(
@@ -326,8 +332,16 @@ class _GanttChartViewState extends State<GanttChartView> {
       }
     }
 
-    minDate = DateTime(minDate.year, minDate.month, minDate.day);
-    maxDate = DateTime(maxDate.year, maxDate.month, maxDate.day);
+    minDate = DateTime(
+      minDate.year,
+      minDate.month,
+      minDate.day,
+    ).subtract(const Duration(days: 14));
+    maxDate = DateTime(
+      maxDate.year,
+      maxDate.month,
+      maxDate.day,
+    ).add(const Duration(days: 14));
 
     return {'start': minDate, 'end': maxDate};
   }

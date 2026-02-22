@@ -62,12 +62,13 @@ class _ResizeHandleState extends State<ResizeHandle> {
     return MouseRegion(
       cursor: SystemMouseCursors.resizeLeftRight,
       child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+        behavior: HitTestBehavior.translucent,
         onHorizontalDragStart: (details) {
           _accumulatedDrag = 0;
         },
         onHorizontalDragUpdate: (details) {
           _accumulatedDrag += details.delta.dx;
+
           final int deltaDays = (_accumulatedDrag / widget.dayWidth).round();
 
           if (deltaDays != 0) {
@@ -80,15 +81,12 @@ class _ResizeHandleState extends State<ResizeHandle> {
           color: Colors.transparent,
           alignment: Alignment.center,
           child: Container(
-            width: 8,
-            height: 24, // Ensure visible height
+            width: 12,
+            height: 28, // Make the handle line slightly larger
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.9),
-              border: Border.all(
-                color: widget.color.withValues(alpha: 0.8),
-                width: 1.5,
-              ),
-              borderRadius: BorderRadius.circular(4),
+              color: Colors.white,
+              border: Border.all(color: widget.color, width: 2.0),
+              borderRadius: BorderRadius.circular(6),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.15),

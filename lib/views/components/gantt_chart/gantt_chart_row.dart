@@ -76,10 +76,10 @@ class _GanttChartRowState extends State<GanttChartRow> {
     final progressHandlePos = width * task.progress;
 
     // Handle Configuration
-    // 判定範囲の幅 (Hit area width)
-    const double handleWidth = 34.0;
-    // リサイズハンドルの位置調整 (Position offset)
-    const double handleOffset = -17.0;
+    // 判定範囲の幅 (Hit area width)を大幅に拡大 (34 -> 48)
+    const double handleWidth = 48.0;
+    // リサイズハンドルの位置調整 (Position offset)をHit areaに合わせる
+    const double handleOffset = -24.0;
 
     return Positioned(
       left: left,
@@ -198,19 +198,23 @@ class _GanttChartRowState extends State<GanttChartRow> {
             ),
             // 依存関係レシーバー
             Positioned(
-              left: -24,
-              top: 0,
-              bottom: 0,
+              left: -32, // 少し広げた
+              top: -8, // 縦方向にも広げる
+              bottom: -8, // 縦方向にも広げる
               child: DragTarget<String>(
                 onWillAcceptWithDetails: (details) => details.data != task.id,
                 onAcceptWithDetails: (details) =>
                     widget.taskProvider.addDependency(details.data, task.id),
                 builder: (context, candidateData, rejectedData) {
                   return Container(
-                    width: 20,
+                    width: 32, // 20 -> 32 に拡大
                     alignment: Alignment.center,
                     child: candidateData.isNotEmpty
-                        ? const Icon(Icons.circle, color: Colors.blue, size: 12)
+                        ? const Icon(
+                            Icons.circle,
+                            color: Colors.blue,
+                            size: 16,
+                          ) // 少し大きく
                         : const SizedBox(),
                   );
                 },
@@ -218,13 +222,14 @@ class _GanttChartRowState extends State<GanttChartRow> {
             ),
             // 進捗ドラッグハンドル
             Positioned(
-              left: progressHandlePos - 20,
-              top: -2,
-              bottom: 12,
+              left: progressHandlePos - 30, // 40->60に広げたため調整
+              top: -6, // 上方向のタップ領域も広げる
+              bottom: 6, // 下方向のタップ領域も広げる
               child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
+                behavior: HitTestBehavior.translucent,
                 onHorizontalDragUpdate: (details) {
-                  final delta = details.delta.dx;
+                  // スワイプに対する追従性を高めるための係数を調整
+                  final delta = details.delta.dx * 1.5;
                   final newWidth = (width * task.progress) + delta;
                   final newProgress = (newWidth / width).clamp(0.0, 1.0);
                   widget.taskProvider.updateTask(
@@ -233,11 +238,12 @@ class _GanttChartRowState extends State<GanttChartRow> {
                   );
                 },
                 child: Container(
-                  width: 40,
+                  width: 60, // 40 -> 60 タップ領域を大幅に拡張
                   color: Colors.transparent,
                   alignment: Alignment.topCenter,
+                  padding: const EdgeInsets.only(top: 4), // 少し下に下ろす
                   child: CustomPaint(
-                    size: const Size(12, 12),
+                    size: const Size(16, 16), // 12 -> 16 三角形自体も大きく
                     painter: TrianglePainter(
                       color: Colors.white,
                       borderColor: Colors.grey.shade600,
