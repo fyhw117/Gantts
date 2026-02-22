@@ -239,22 +239,40 @@ class WBSView extends StatelessWidget {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // const SizedBox(height: 4), // Removed for compactness
+            const SizedBox(height: 4),
             Row(
               children: [
                 Icon(Icons.calendar_today, size: 12, color: Colors.grey[600]),
                 const SizedBox(width: 4),
-                Text(
-                  '${_formatDate(task.startDate)} - ${_formatDate(task.endDate)}',
-                  style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                Expanded(
+                  child: Text(
+                    '${_formatDate(task.startDate)} - ${_formatDate(task.endDate)}',
+                    style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 8),
                 Text(
                   '${(task.progress * 100).toStringAsFixed(0)}%',
-                  style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[700],
+                  ),
                 ),
               ],
             ),
+            const SizedBox(height: 4),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(2),
+              child: LinearProgressIndicator(
+                value: task.progress,
+                backgroundColor: Colors.grey.shade200,
+                color: task.color,
+                minHeight: 4,
+              ),
+            ),
+            const SizedBox(height: 4),
           ],
         ),
         trailing: PopupMenuButton<String>(

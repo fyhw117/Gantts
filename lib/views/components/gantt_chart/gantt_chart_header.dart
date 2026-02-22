@@ -56,23 +56,37 @@ class GanttChartHeader extends StatelessWidget {
                                 ).colorScheme.tertiary.withValues(alpha: 0.3)
                               : Colors.transparent),
                   ),
-                  child: Center(
-                    child: isCompact
-                        ? null
-                        : Text(
-                            '${date.day}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isToday
-                                  ? Theme.of(context).colorScheme.primary
-                                  : (isWeekend
-                                        ? Theme.of(context).colorScheme.primary
-                                        : Colors.black87),
-                              fontWeight: isToday || isWeekend
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                            ),
-                          ),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Center(
+                        child: isCompact
+                            ? null
+                            : Text(
+                                '${date.day}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isToday
+                                      ? Theme.of(context).colorScheme.primary
+                                      : (isWeekend
+                                            ? Theme.of(
+                                                context,
+                                              ).colorScheme.primary
+                                            : Colors.black87),
+                                  fontWeight: isToday || isWeekend
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                      ),
+                      if (isToday)
+                        Positioned(
+                          left: (dayWidth / 2) - 1,
+                          top: 0,
+                          bottom: 0,
+                          child: Container(width: 2, color: Colors.redAccent),
+                        ),
+                    ],
                   ),
                 );
               }),

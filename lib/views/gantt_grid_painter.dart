@@ -49,6 +49,17 @@ class GanttGridPainter extends CustomPainter {
       paint.color = gridColor;
       paint.strokeWidth = 1.0;
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+
+      if (isToday) {
+        paint.color = Colors.redAccent;
+        paint.strokeWidth = 2.0;
+        final todayCenter = x + (dayWidth / 2);
+        canvas.drawLine(
+          Offset(todayCenter, 0),
+          Offset(todayCenter, size.height),
+          paint,
+        );
+      }
     }
   }
 
