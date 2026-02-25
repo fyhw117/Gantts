@@ -253,12 +253,50 @@ class _GanttChartViewState extends State<GanttChartView> {
             'ガントチャート',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
-          IconButton(
-            constraints: const BoxConstraints(),
-            padding: const EdgeInsets.all(4),
-            icon: Icon(_isCompact ? Icons.zoom_in : Icons.zoom_out),
-            tooltip: _isCompact ? '標準表示に切り替え' : '全体表示に切り替え',
-            onPressed: _toggleViewMode,
+          Row(
+            children: [
+              IconButton(
+                constraints: const BoxConstraints(),
+                padding: const EdgeInsets.all(4),
+                icon: const Icon(Icons.help_outline),
+                tooltip: '使い方',
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('💡 ワンポイントアドバイス'),
+                      content: const Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '• タスク名を「長押し」して他のタスクへドラッグすると、関連線（依存関係）をつなぐことができます。',
+                          ),
+                          SizedBox(height: 8),
+                          Text('• チャート上のタスクバーの左右の端をドラッグすると、期間を変更できます。'),
+                          SizedBox(height: 8),
+                          Text('• タスクバー上部の三角形を左右にドラッグすると、進捗率を変更できます。'),
+                        ],
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('OK'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                constraints: const BoxConstraints(),
+                padding: const EdgeInsets.all(4),
+                icon: Icon(_isCompact ? Icons.zoom_in : Icons.zoom_out),
+                tooltip: _isCompact ? '標準表示に切り替え' : '全体表示に切り替え',
+                onPressed: _toggleViewMode,
+              ),
+            ],
           ),
         ],
       ),
