@@ -119,8 +119,16 @@ class FirestoreRepository {
       description: 'GanttChartアプリへようこそ！これはサンプルデータです。',
     );
 
-    // プロジェクトを作成
-    await addProject(userId, project);
+    // WriteBatchを使用してプロジェクトとタスクを同時に保存する
+    final batch = _firestore.batch();
+
+    final projectRef = _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('projects')
+        .doc(project.id);
+
+    batch.set(projectRef, project.toMap());
 
     // サンプルタスクを作成
     final now = DateTime.now();
@@ -171,9 +179,13 @@ class FirestoreRepository {
       dependencies: [task2.id],
     );
 
-    // タスクを保存 (ルートタスクのみ保存すればOK)
-    await addTask(userId, project.id, task1);
-    await addTask(userId, project.id, task2WithChildren);
-    await addTask(userId, project.id, task3);
+    // タスクの参照を作成してBatchに追加
+    final tasksRef = projectRef.collection('tasks');
+    batch.set(tasksRef.doc(task1.id), task1.toMap());
+    batch.set(tasksRef.doc(task2WithChildren.id), task2WithChildren.toMap());
+    batch.set(tasksRef.doc(task3.id), task3.toMap());
+
+    // すべての変更を一度にFirestoreへコミット（これで競合を回避）
+    await batch.commit();
   }
 }
