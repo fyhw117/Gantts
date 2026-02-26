@@ -269,9 +269,7 @@ class _GanttChartViewState extends State<GanttChartView> {
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            '• タスク名を「長押し」して他のタスクへドラッグすると、関連線（依存関係）をつなぐことができます。',
-                          ),
+                          Text('• タスク名を「長押し」することで、関連線（依存関係）をつなぐことができます。'),
                           SizedBox(height: 8),
                           Text('• チャート上のタスクバーの左右の端をドラッグすると、期間を変更できます。'),
                           SizedBox(height: 8),
